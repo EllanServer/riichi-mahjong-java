@@ -99,6 +99,43 @@ public final class RiichiRound {
         }
     }
 
+    private RiichiRound(RiichiRound source) {
+        rules = source.rules;
+        seats = source.seats;
+        dealerIndex = source.dealerIndex;
+        roundWind = source.roundWind;
+        currentPlayerIndex = source.currentPlayerIndex;
+        honba = source.honba;
+        riichiSticks = source.riichiSticks;
+        phase = source.phase;
+        handEvaluator = source.handEvaluator;
+        scoreCalculator = source.scoreCalculator;
+        for (Map.Entry<PlayerId, PlayerState> entry : source.players.entrySet()) {
+            players.put(entry.getKey(), new PlayerState(entry.getValue()));
+        }
+        liveWall = new ArrayDeque<>(source.liveWall);
+        rinshan = new ArrayDeque<>(source.rinshan);
+        doraIndicatorSequence = source.doraIndicatorSequence;
+        uraDoraIndicatorSequence = source.uraDoraIndicatorSequence;
+        kanTracker = new KanTracker(source.kanTracker.byPlayer());
+        riichiPlayers.addAll(source.riichiPlayers);
+        firstDiscards.addAll(source.firstDiscards);
+        pendingDiscard = source.pendingDiscard == null ? null : new PendingDiscard(
+                source.pendingDiscard.discarder,
+                source.pendingDiscard.tile,
+                source.pendingDiscard.window.copy(),
+                source.pendingDiscard.ronScores,
+                source.pendingDiscard.riichiDeclaration);
+        firstTurnUninterrupted = source.firstTurnUninterrupted;
+        anyCallMade = source.anyCallMade;
+        pendingFourKanAbort = source.pendingFourKanAbort;
+        pendingOpenKanDora = source.pendingOpenKanDora;
+        revealedDoraCount = source.revealedDoraCount;
+        abortiveDraw = source.abortiveDraw;
+        endReason = source.endReason;
+        settlement = source.settlement;
+    }
+
     public static RiichiRound fromScenario(Scenario scenario) {
         return new RiichiRound(scenario, RiichiServices.handEvaluator(), RiichiServices.scoreCalculator());
     }
@@ -108,6 +145,10 @@ public final class RiichiRound {
             HandEvaluator evaluator,
             ScoreCalculator calculator) {
         return new RiichiRound(scenario, evaluator, calculator);
+    }
+
+    RiichiRound copy() {
+        return new RiichiRound(this);
     }
 
     public CommandResult apply(RoundCommand command) {
@@ -810,6 +851,21 @@ public final class RiichiRound {
             this.score = score;
             this.hand = new ArrayList<>(hand);
             this.melds = new ArrayList<>(melds);
+        }
+
+        private PlayerState(PlayerState source) {
+            id = source.id;
+            score = source.score;
+            hand = new ArrayList<>(source.hand);
+            melds = new ArrayList<>(source.melds);
+            discards.addAll(source.discards);
+            furiten.restore(source.furiten.snapshot());
+            riichi = source.riichi;
+            doubleRiichi = source.doubleRiichi;
+            ippatsu = source.ippatsu;
+            lastDrawn = source.lastDrawn;
+            lastDrawWasRinshan = source.lastDrawWasRinshan;
+            kuikaeForbidden = source.kuikaeForbidden;
         }
 
         private Optional<TileInstance> find(TileId id) {

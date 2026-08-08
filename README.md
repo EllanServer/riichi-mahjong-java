@@ -32,6 +32,7 @@ ordinary no-yaku result.
 - Riichi scoring through a Java public API backed by the pinned scoring runtime;
 - per-suit red-five supply, repeated indicators, minimum-yaku-han enforcement and typed payments;
 - deterministic round-start/fixture `Scenario` construction and replayable command results;
+- copy-on-write `RiichiRoundEngine` revisions for isolated actor/async transitions;
 - draw, discard, riichi declaration, chi/pon/open-kan reactions, priority and post-call kuikae;
 - non-riichi ankan legality, explicit fifth-kan rejection on both self and discard-reaction paths;
 - one-shot reactions, own/temporary/riichi furiten and ippatsu interruption;

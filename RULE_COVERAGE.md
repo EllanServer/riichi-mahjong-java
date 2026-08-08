@@ -36,3 +36,9 @@ tests plus 12,000 deterministic differential hands against mahjong-utils 0.7.7;
 the oracle exists only in test source. `MahjongUtilsBridge` remains a reflective
 Kotlin/JVM boundary for `ScoreCalculator`, so upgrading the scoring dependency
 still requires compatibility, scoring-gold and performance verification.
+
+`RiichiRoundEngine` is the immutable production-facing transition boundary. It
+deep-copies concealed hands, walls, discards, furiten, reactions, kan tracking
+and settlement state before applying a command. Accepted work returns a new
+revision; rejected or competing work cannot mutate the input revision. A
+canonical persistence snapshot of that complete state remains pending.
