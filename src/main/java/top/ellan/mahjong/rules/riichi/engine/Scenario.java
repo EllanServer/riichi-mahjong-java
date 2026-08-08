@@ -57,9 +57,31 @@ public record Scenario(
     }
 
     public static Scenario standard(RiichiRules rules, List<PlayerId> players, long seed) {
+        LinkedHashMap<PlayerId, Integer> scores = new LinkedHashMap<>();
+        players.forEach(player -> scores.put(player, rules.startingPoints()));
+        return standard(rules, players, seed, 0, Wind.EAST, 0, 0, scores);
+    }
+
+    public static Scenario standard(
+            RiichiRules rules,
+            List<PlayerId> players,
+            long seed,
+            int dealerIndex,
+            Wind roundWind,
+            int honba,
+            int riichiSticks,
+            Map<PlayerId, Integer> currentScores) {
         List<PlayerId> seats = List.copyOf(players);
         if (seats.size() != 4 || seats.stream().distinct().count() != 4) {
             throw new IllegalArgumentException("standard Riichi requires four unique players");
+        }
+        if (dealerIndex < 0 || dealerIndex >= seats.size()) {
+            throw new IllegalArgumentException("dealer index is outside the seat order");
+        }
+        Objects.requireNonNull(roundWind, "roundWind");
+        Map<PlayerId, Integer> scores = Map.copyOf(Objects.requireNonNull(currentScores, "currentScores"));
+        if (!scores.keySet().equals(Set.copyOf(seats))) {
+            throw new IllegalArgumentException("current scores must exactly match the seats");
         }
         ArrayList<TileInstance> wall = standardWall(rules);
         Collections.shuffle(wall, new Random(seed));
@@ -73,19 +95,17 @@ public record Scenario(
                 hands.get(player).add(wall.removeFirst());
             }
         }
-        hands.get(seats.getFirst()).add(wall.removeFirst());
-        LinkedHashMap<PlayerId, Integer> scores = new LinkedHashMap<>();
+        hands.get(seats.get(dealerIndex)).add(wall.removeFirst());
         LinkedHashMap<PlayerId, List<Meld>> melds = new LinkedHashMap<>();
         seats.forEach(player -> {
-            scores.put(player, rules.startingPoints());
             melds.put(player, List.of());
         });
         List<Tile> doraSequence = List.of(8, 6, 4, 2, 0).stream().map(deadWall::get).map(TileInstance::tile).toList();
         List<Tile> uraSequence = List.of(9, 7, 5, 3, 1).stream().map(deadWall::get).map(TileInstance::tile).toList();
         return new Scenario(
-                rules, seats, 0, Wind.EAST, 0, 0, scores, hands, melds,
+                rules, seats, dealerIndex, roundWind, honba, riichiSticks, scores, hands, melds,
                 wall, deadWall.subList(10, 14), doraSequence, uraSequence,
-                0, RoundPhase.AWAITING_DISCARD, Map.of());
+                dealerIndex, RoundPhase.AWAITING_DISCARD, Map.of());
     }
 
     public static Builder builder(List<PlayerId> seatOrder) {

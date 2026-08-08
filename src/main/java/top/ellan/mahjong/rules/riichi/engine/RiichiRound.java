@@ -56,6 +56,7 @@ public final class RiichiRound {
     private final KanTracker kanTracker;
     private final Set<PlayerId> riichiPlayers = new LinkedHashSet<>();
     private final List<TileKind> firstDiscards = new ArrayList<>();
+    private final Set<PlayerId> winners = new LinkedHashSet<>();
     private final Set<PlayerId> tenpaiPlayers = new LinkedHashSet<>();
     private final Set<PlayerId> nagashiWinners = new LinkedHashSet<>();
 
@@ -124,6 +125,7 @@ public final class RiichiRound {
         kanTracker = new KanTracker(source.kanTracker.byPlayer());
         riichiPlayers.addAll(source.riichiPlayers);
         firstDiscards.addAll(source.firstDiscards);
+        winners.addAll(source.winners);
         tenpaiPlayers.addAll(source.tenpaiPlayers);
         nagashiWinners.addAll(source.nagashiWinners);
         pendingReaction = source.pendingReaction == null ? null : new PendingReaction(
@@ -215,6 +217,7 @@ public final class RiichiRound {
                 revealedDoraCount,
                 honba,
                 riichiSticks,
+                winners,
                 tenpaiPlayers,
                 nagashiWinners,
                 Optional.ofNullable(abortiveDraw),
@@ -351,6 +354,11 @@ public final class RiichiRound {
             ReactionResolution resolution,
             List<RoundEvent> events) {
         if (!resolution.ronWinners().isEmpty()) {
+            if (resolution.ronWinners().size() == 3) {
+                pendingReaction = null;
+                end("TRIPLE_RON", AbortiveDraw.TRIPLE_RON, null, events);
+                return;
+            }
             resolveRon(pending, resolution.ronWinners(), events);
             return;
         }
@@ -621,6 +629,7 @@ public final class RiichiRound {
         }
         if (riichiSticks > 0) transfers.add(SettlementAggregator.riichiPool(playerId, riichiSticks));
         finishSettlement("TSUMO", transfers, events);
+        winners.add(playerId);
     }
 
     private void resolveRon(PendingReaction pending, List<PlayerId> winners, List<RoundEvent> events) {
@@ -662,6 +671,7 @@ public final class RiichiRound {
             transfers.add(SettlementAggregator.riichiPool(winners.getFirst(), payableRiichiSticks));
         }
         finishSettlement(pending.pendingKan.isPresent() ? "CHANKAN" : "RON", transfers, events);
+        this.winners.addAll(winners);
         if (pending.pendingKan.isPresent()) {
             player(pending.source).hand.remove(pending.tile);
         }

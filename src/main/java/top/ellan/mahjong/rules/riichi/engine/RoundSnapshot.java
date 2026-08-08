@@ -26,6 +26,7 @@ public record RoundSnapshot(
         int revealedDoraCount,
         int honba,
         int riichiSticks,
+        Set<PlayerId> winners,
         Set<PlayerId> tenpaiPlayers,
         Set<PlayerId> nagashiWinners,
         Optional<AbortiveDraw> abortiveDraw,
@@ -39,9 +40,12 @@ public record RoundSnapshot(
         discards = deepCopy(discards);
         melds = deepCopy(melds);
         riichi = Map.copyOf(riichi);
+        winners = Set.copyOf(Objects.requireNonNull(winners, "winners"));
         tenpaiPlayers = Set.copyOf(Objects.requireNonNull(tenpaiPlayers, "tenpaiPlayers"));
         nagashiWinners = Set.copyOf(Objects.requireNonNull(nagashiWinners, "nagashiWinners"));
-        if (!scores.keySet().containsAll(tenpaiPlayers) || !scores.keySet().containsAll(nagashiWinners)) {
+        if (!scores.keySet().containsAll(winners)
+                || !scores.keySet().containsAll(tenpaiPlayers)
+                || !scores.keySet().containsAll(nagashiWinners)) {
             throw new IllegalArgumentException("draw result references a player outside the round");
         }
         abortiveDraw = Objects.requireNonNull(abortiveDraw, "abortiveDraw");

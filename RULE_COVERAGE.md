@@ -19,11 +19,11 @@ not a claim that mahjong-utils is the authority for every platform rule.
 | Last live-wall tile | Implemented | Only ron is offered after the final discard; no kan/call is allowed. |
 | Furiten | Implemented core | Own-discard, temporary and riichi-permanent lifetimes are explicit. |
 | Ippatsu | Implemented core | Calls and kans interrupt; next own discard expires it. |
-| Abortive draws | Trigger implemented | Nine terminals, four winds, four riichi and multi-player four-kan triggers; no match continuation policy. |
+| Abortive draws | Implemented | Nine terminals, four winds, four riichi, triple ron and multi-player four-kan triggers all retain dealer and increment honba in match progression. |
 | Ron / tsumo settlement | Implemented core | Honba, riichi pool/refund, multi-ron aggregation and overflow preflight are tested. |
 | Pao | Implemented core | The third open dragon or fourth open wind set binds the feeding player; integrated ron/tsumo settlement splits only the liable yakuman portion. |
 | Exhaustive draw / nagashi | Implemented core | The 3,000-point noten pool, formal tenpai set, unclaimed terminal/honor river check, mangan payments and riichi-pool carry are explicit. |
-| Match progression | Not implemented | Dealer continuation, round wind advancement, bust/end conditions and rankings stay in the host. |
+| Match progression | Implemented core | Immutable East-South state owns dealer continuation, honba/riichi carry, bust, automatic all-last stop, West sudden death, maximum wind and East-one tie ordering. |
 | Persistence / replay resume | Partial | Deterministic start/fixture scenarios only; pending reaction and historical player state are not serialized. |
 | Three-player / flowers / jokers | Not supported | Inputs fail validation or are outside the 34-kind domain. |
 

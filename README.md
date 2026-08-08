@@ -37,10 +37,11 @@ ordinary no-yaku result.
 - ankan/kakan, explicit chankan windows, Kokushi-only ankan robbery, and riichi-ankan wait preservation;
 - fifth-kan rejection on self/discard paths and profile-specific open-kan dora timing;
 - one-shot reactions, own/temporary/riichi furiten and ippatsu interruption;
-- nine-terminals, four-winds, four-riichi and multi-player four-kan abortive-draw triggers;
+- nine-terminals, four-winds, four-riichi, triple-ron and multi-player four-kan abortive-draw triggers;
 - ron/tsumo settlement, honba/riichi pool, and per-player payment aggregation;
 - exhaustive-draw tenpai/noten payments and river/call-aware nagashi mangan;
-- automatic Daisangen/Daisuushii pao registration and integrated ron/tsumo payment splitting.
+- automatic Daisangen/Daisuushii pao registration and integrated ron/tsumo payment splitting;
+- immutable East-South match progression with renchan, honba, riichi carry, busts, West sudden death and rankings.
 
 The migrated suite includes 42 named real-world yaku/yakuman examples plus
 state, settlement, fail-closed and model-invariant regressions. Native shanten
@@ -51,8 +52,6 @@ backend, covering closed 13/14-tile hands and 1-4 legal melds.
 
 The command core rejects rather than guesses when a scenario asks it to:
 
-- continue into match-length extension / final ranking policy;
-- calculate dealer continuation and complete-match advancement;
 - score renhou or serialize/restore an already-open reaction window or ended round;
 - derive platform timeouts, bot decisions, persistence, or hidden-information views;
 - use flowers, jokers, unknown tiles, three-player walls, or a fifth physical copy.
