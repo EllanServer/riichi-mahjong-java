@@ -1,0 +1,22 @@
+riichi-mahjong-java
+Copyright (c) 2026 Arbousier1
+
+This repository uses Mahjong Utils by ssttkkl:
+  artifact: io.github.ssttkkl:mahjong-utils-jvm:0.7.7
+  project:  https://github.com/ssttkkl/mahjong-utils
+  license:  MIT
+  jar SHA-256: 0af586bf2d62fe60f91675e579a0e9e74d5deced1d23ecc63ebe3a1fb8219fa2
+
+Upstream copyright: Copyright (c) 2022 ssttkkl.
+The complete upstream MIT permission notice is reproduced in
+THIRD_PARTY_LICENSES.md.
+
+The dependency is an independent work. Its resolved runtime graph also contains
+Kotlin stdlib 2.0.20, kotlinx.serialization core 1.7.0-RC, and JetBrains
+annotations 13.0. Those components remain under their respective upstream
+licenses and are listed in THIRD_PARTY_LICENSES.md. No mahjong-utils, Kotlin,
+or kotlinx type is part of this project's public API.
+
+Rule-profile references checked 2026-08-08:
+  Mahjong Soul four-player rules: https://mahjongsoul.com/news/46
+  Mahjong Soul FAQ:               https://mahjongsoul.com/faq
