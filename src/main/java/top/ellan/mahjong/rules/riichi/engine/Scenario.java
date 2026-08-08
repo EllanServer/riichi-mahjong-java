@@ -53,7 +53,7 @@ public record Scenario(
         Objects.requireNonNull(phase, "phase");
         kanCounts = immutableMap(kanCounts);
         validate(rules, seatOrder, dealerIndex, currentPlayerIndex, honba, riichiSticks, phase, scores, hands, melds,
-                liveWall, rinshan, kanCounts);
+                liveWall, rinshan, doraIndicatorSequence, uraDoraIndicatorSequence, kanCounts);
     }
 
     public static Scenario standard(RiichiRules rules, List<PlayerId> players, long seed) {
@@ -137,6 +137,8 @@ public record Scenario(
             Map<PlayerId, List<Meld>> melds,
             List<TileInstance> liveWall,
             List<TileInstance> rinshan,
+            List<TileInstance> doraIndicatorSequence,
+            List<TileInstance> uraDoraIndicatorSequence,
             Map<PlayerId, Integer> kanCounts) {
         if (seats.size() != 4 || seats.stream().distinct().count() != 4) {
             throw new IllegalArgumentException("scenario requires four unique players");
