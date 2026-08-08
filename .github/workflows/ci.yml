@@ -1,0 +1,55 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - "2.0"
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: riichi-ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  wrapper-validation:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+      - name: Validate Gradle wrapper
+        uses: gradle/actions/wrapper-validation@v6
+
+  verify:
+    needs: wrapper-validation
+    strategy:
+      fail-fast: false
+      matrix:
+        java:
+          - "21"
+          - "25"
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+      - name: Set up JDK ${{ matrix.java }}
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: ${{ matrix.java }}
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v6
+      - name: Make Gradle wrapper executable
+        run: chmod +x ./gradlew
+      - name: Verify rules engine and pinned scoring backend
+        run: ./gradlew clean check jar javadoc --no-daemon
+      - name: Upload Java 21 candidate artifacts
+        if: matrix.java == '21'
+        uses: actions/upload-artifact@v7
+        with:
+          name: riichi-mahjong-java-candidate
+          path: build/libs/*.jar
+          if-no-files-found: error
