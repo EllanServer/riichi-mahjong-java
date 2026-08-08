@@ -52,6 +52,58 @@ public final class SettlementAggregator {
         return List.copyOf(result);
     }
 
+    public static List<PaymentTransfer> noten(
+            Collection<PlayerId> tenpaiPlayers,
+            Collection<PlayerId> notenPlayers) {
+        List<PlayerId> tenpai = List.copyOf(Objects.requireNonNull(tenpaiPlayers, "tenpaiPlayers"));
+        List<PlayerId> noten = List.copyOf(Objects.requireNonNull(notenPlayers, "notenPlayers"));
+        if (tenpai.stream().distinct().count() != tenpai.size()
+                || noten.stream().distinct().count() != noten.size()
+                || tenpai.stream().anyMatch(noten::contains)
+                || tenpai.size() + noten.size() != 4) {
+            throw new IllegalArgumentException("noten settlement requires a four-player partition");
+        }
+        if (tenpai.isEmpty() || noten.isEmpty()) return List.of();
+
+        int gainPerTenpai = 3_000 / tenpai.size();
+        int lossPerNoten = 3_000 / noten.size();
+        ArrayList<PaymentTransfer> result = new ArrayList<>();
+        int tenpaiIndex = 0;
+        int notenIndex = 0;
+        int gainRemaining = gainPerTenpai;
+        int lossRemaining = lossPerNoten;
+        while (tenpaiIndex < tenpai.size() && notenIndex < noten.size()) {
+            int amount = Math.min(gainRemaining, lossRemaining);
+            add(result, noten.get(notenIndex), tenpai.get(tenpaiIndex), amount, PaymentReason.NOTEN);
+            gainRemaining -= amount;
+            lossRemaining -= amount;
+            if (gainRemaining == 0) {
+                tenpaiIndex++;
+                gainRemaining = gainPerTenpai;
+            }
+            if (lossRemaining == 0) {
+                notenIndex++;
+                lossRemaining = lossPerNoten;
+            }
+        }
+        return List.copyOf(result);
+    }
+
+    public static List<PaymentTransfer> nagashiMangan(
+            PlayerId winner,
+            Map<PlayerId, Integer> payerAmounts) {
+        Objects.requireNonNull(winner, "winner");
+        Map<PlayerId, Integer> payers = Map.copyOf(Objects.requireNonNull(payerAmounts, "payerAmounts"));
+        if (payers.size() != 3 || payers.containsKey(winner)
+                || payers.values().stream().anyMatch(amount -> amount == null || amount <= 0)) {
+            throw new IllegalArgumentException("nagashi mangan requires three positive opponent payments");
+        }
+        ArrayList<PaymentTransfer> result = new ArrayList<>();
+        payers.forEach((payer, amount) -> add(
+                result, payer, winner, amount, PaymentReason.NAGASHI_MANGAN));
+        return List.copyOf(result);
+    }
+
     public static PaymentTransfer riichiPool(PlayerId winner, int sticks) {
         if (sticks <= 0) throw new IllegalArgumentException("riichi sticks must be positive");
         return new PaymentTransfer(

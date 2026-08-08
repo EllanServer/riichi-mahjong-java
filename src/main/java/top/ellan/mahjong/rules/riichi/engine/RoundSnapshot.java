@@ -9,6 +9,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 
 /** Public snapshot deliberately excludes concealed tiles and hidden wall contents. */
 public record RoundSnapshot(
@@ -25,6 +26,8 @@ public record RoundSnapshot(
         int revealedDoraCount,
         int honba,
         int riichiSticks,
+        Set<PlayerId> tenpaiPlayers,
+        Set<PlayerId> nagashiWinners,
         Optional<AbortiveDraw> abortiveDraw,
         Optional<String> endReason,
         Optional<AggregatedSettlement> settlement) {
@@ -36,6 +39,11 @@ public record RoundSnapshot(
         discards = deepCopy(discards);
         melds = deepCopy(melds);
         riichi = Map.copyOf(riichi);
+        tenpaiPlayers = Set.copyOf(Objects.requireNonNull(tenpaiPlayers, "tenpaiPlayers"));
+        nagashiWinners = Set.copyOf(Objects.requireNonNull(nagashiWinners, "nagashiWinners"));
+        if (!scores.keySet().containsAll(tenpaiPlayers) || !scores.keySet().containsAll(nagashiWinners)) {
+            throw new IllegalArgumentException("draw result references a player outside the round");
+        }
         abortiveDraw = Objects.requireNonNull(abortiveDraw, "abortiveDraw");
         endReason = Objects.requireNonNull(endReason, "endReason");
         settlement = Objects.requireNonNull(settlement, "settlement");

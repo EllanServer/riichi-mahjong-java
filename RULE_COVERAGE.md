@@ -21,8 +21,8 @@ not a claim that mahjong-utils is the authority for every platform rule.
 | Ippatsu | Implemented core | Calls and kans interrupt; next own discard expires it. |
 | Abortive draws | Trigger implemented | Nine terminals, four winds, four riichi and multi-player four-kan triggers; no match continuation policy. |
 | Ron / tsumo settlement | Implemented core | Honba, riichi pool/refund, multi-ron aggregation and overflow preflight are tested. |
-| Pao | Standalone only | Daisangen/Daisuushii split calculator exists; `RiichiRound` does not auto-register liability. |
-| Exhaustive draw / nagashi | Not implemented | The round ends with a reason but does not calculate noten payments or nagashi mangan. |
+| Pao | Implemented core | The third open dragon or fourth open wind set binds the feeding player; integrated ron/tsumo settlement splits only the liable yakuman portion. |
+| Exhaustive draw / nagashi | Implemented core | The 3,000-point noten pool, formal tenpai set, unclaimed terminal/honor river check, mangan payments and riichi-pool carry are explicit. |
 | Match progression | Not implemented | Dealer continuation, round wind advancement, bust/end conditions and rankings stay in the host. |
 | Persistence / replay resume | Partial | Deterministic start/fixture scenarios only; pending reaction and historical player state are not serialized. |
 | Three-player / flowers / jokers | Not supported | Inputs fail validation or are outside the 34-kind domain. |

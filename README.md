@@ -39,7 +39,8 @@ ordinary no-yaku result.
 - one-shot reactions, own/temporary/riichi furiten and ippatsu interruption;
 - nine-terminals, four-winds, four-riichi and multi-player four-kan abortive-draw triggers;
 - ron/tsumo settlement, honba/riichi pool, and per-player payment aggregation;
-- standalone Daisangen/Daisuushii pao split calculator for adapter integration.
+- exhaustive-draw tenpai/noten payments and river/call-aware nagashi mangan;
+- automatic Daisangen/Daisuushii pao registration and integrated ron/tsumo payment splitting.
 
 The migrated suite includes 42 named real-world yaku/yakuman examples plus
 state, settlement, fail-closed and model-invariant regressions. Native shanten
@@ -51,8 +52,7 @@ backend, covering closed 13/14-tile hands and 1-4 legal melds.
 The command core rejects rather than guesses when a scenario asks it to:
 
 - continue into match-length extension / final ranking policy;
-- auto-register Daisangen/Daisuushii liability from calls inside `RiichiRound` (use `PaoPaymentCalculator` after adapter tracking);
-- calculate exhaustive-draw tenpai/noten payments, nagashi mangan, or dealer continuation;
+- calculate dealer continuation and complete-match advancement;
 - score renhou or serialize/restore an already-open reaction window or ended round;
 - derive platform timeouts, bot decisions, persistence, or hidden-information views;
 - use flowers, jokers, unknown tiles, three-player walls, or a fifth physical copy.

@@ -1,5 +1,5 @@
 package top.ellan.mahjong.rules.riichi.settlement;
 
 public enum PaymentReason {
-    RON, TSUMO, PAO, HONBA, RIICHI_POOL, RIICHI_REFUND
+    RON, TSUMO, PAO, HONBA, RIICHI_POOL, RIICHI_REFUND, NOTEN, NAGASHI_MANGAN
 }

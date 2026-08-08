@@ -18,7 +18,9 @@ import top.ellan.mahjong.rules.riichi.scoring.ScoreRequest;
 import top.ellan.mahjong.rules.riichi.scoring.ScoreResult;
 import top.ellan.mahjong.rules.riichi.scoring.TsumoPayment;
 import top.ellan.mahjong.rules.riichi.scoring.WinMethod;
+import top.ellan.mahjong.rules.riichi.scoring.YakuAward;
 import top.ellan.mahjong.rules.riichi.settlement.AggregatedSettlement;
+import top.ellan.mahjong.rules.riichi.settlement.PaoPaymentCalculator;
 import top.ellan.mahjong.rules.riichi.settlement.PaymentTransfer;
 import top.ellan.mahjong.rules.riichi.settlement.SettlementAggregator;
 
@@ -54,6 +56,8 @@ public final class RiichiRound {
     private final KanTracker kanTracker;
     private final Set<PlayerId> riichiPlayers = new LinkedHashSet<>();
     private final List<TileKind> firstDiscards = new ArrayList<>();
+    private final Set<PlayerId> tenpaiPlayers = new LinkedHashSet<>();
+    private final Set<PlayerId> nagashiWinners = new LinkedHashSet<>();
 
     private int currentPlayerIndex;
     private int honba;
@@ -120,6 +124,8 @@ public final class RiichiRound {
         kanTracker = new KanTracker(source.kanTracker.byPlayer());
         riichiPlayers.addAll(source.riichiPlayers);
         firstDiscards.addAll(source.firstDiscards);
+        tenpaiPlayers.addAll(source.tenpaiPlayers);
+        nagashiWinners.addAll(source.nagashiWinners);
         pendingReaction = source.pendingReaction == null ? null : new PendingReaction(
                 source.pendingReaction.source,
                 source.pendingReaction.tile,
@@ -209,6 +215,8 @@ public final class RiichiRound {
                 revealedDoraCount,
                 honba,
                 riichiSticks,
+                tenpaiPlayers,
+                nagashiWinners,
                 Optional.ofNullable(abortiveDraw),
                 Optional.ofNullable(endReason),
                 Optional.ofNullable(settlement));
@@ -229,7 +237,7 @@ public final class RiichiRound {
         requirePhase(RoundPhase.AWAITING_DRAW);
         requireCurrent(player);
         if (liveWall.isEmpty()) {
-            end("EXHAUSTIVE_DRAW", null, null, events);
+            settleExhaustiveDraw(events);
             return;
         }
         PlayerState state = player(player);
@@ -374,6 +382,10 @@ public final class RiichiRound {
                 Optional.of(pending.tile.id()));
         caller.hand.removeAll(consumed);
         caller.melds.add(meld);
+        player(pending.source).calledDiscards.add(pending.tile.id());
+        if (type == MeldType.PON || type == MeldType.MINKAN) {
+            registerPaoLiability(caller, pending.source);
+        }
         caller.kuikaeForbidden = switch (type) {
             case PON -> Set.of(pending.tile.tile().kind());
             case CHII -> kuikaeForbiddenAfterChii(pending.tile.tile().kind(), consumed);
@@ -580,17 +592,33 @@ public final class RiichiRound {
         ScoreResult score = score(winner, winning.tile(), true, WinMethod.TSUMO, false);
         requireLegalWin(score);
         TsumoPayment payment = score.tsumoPayment().orElseThrow();
-        LinkedHashMap<PlayerId, Integer> payers = new LinkedHashMap<>();
         boolean winnerDealer = seatWind(playerId) == Wind.EAST;
-        for (PlayerId opponent : seats) {
-            if (opponent.equals(playerId)) continue;
-            int amount = winnerDealer || seatWind(opponent) != Wind.EAST
-                    ? payment.nonDealerPaysEach()
-                    : payment.dealerPays();
-            payers.put(opponent, amount);
+        List<PlayerId> opponents = seats.stream()
+                .filter(opponent -> !opponent.equals(playerId))
+                .toList();
+        ArrayList<PaymentTransfer> transfers;
+        Optional<PaoAward> pao = paoAward(winner, score);
+        if (pao.isPresent()) {
+            PaoAward award = pao.orElseThrow();
+            transfers = new ArrayList<>(PaoPaymentCalculator.tsumo(
+                    playerId,
+                    award.liable,
+                    seats.get(dealerIndex),
+                    opponents,
+                    winnerDealer,
+                    score.yakumanMultiplier(),
+                    award.multiplier,
+                    honba));
+        } else {
+            LinkedHashMap<PlayerId, Integer> payers = new LinkedHashMap<>();
+            for (PlayerId opponent : opponents) {
+                int amount = winnerDealer || seatWind(opponent) != Wind.EAST
+                        ? payment.nonDealerPaysEach()
+                        : payment.dealerPays();
+                payers.put(opponent, amount);
+            }
+            transfers = new ArrayList<>(SettlementAggregator.tsumo(playerId, payers, honba));
         }
-        ArrayList<PaymentTransfer> transfers = new ArrayList<>(
-                SettlementAggregator.tsumo(playerId, payers, honba));
         if (riichiSticks > 0) transfers.add(SettlementAggregator.riichiPool(playerId, riichiSticks));
         finishSettlement("TSUMO", transfers, events);
     }
@@ -610,12 +638,25 @@ public final class RiichiRound {
             PlayerId winner = winners.get(index);
             ScoreResult score = pending.ronScores.get(winner);
             requireLegalWin(score);
-            transfers.addAll(SettlementAggregator.ron(
-                    winner,
-                    pending.source,
-                    score.ronPayment().orElseThrow().discarderPays(),
-                    honba,
-                    index == 0));
+            Optional<PaoAward> pao = paoAward(player(winner), score);
+            if (pao.isPresent()) {
+                PaoAward award = pao.orElseThrow();
+                transfers.addAll(PaoPaymentCalculator.ron(
+                        winner,
+                        pending.source,
+                        award.liable,
+                        seatWind(winner) == Wind.EAST,
+                        score.yakumanMultiplier(),
+                        award.multiplier,
+                        index == 0 ? honba : 0));
+            } else {
+                transfers.addAll(SettlementAggregator.ron(
+                        winner,
+                        pending.source,
+                        score.ronPayment().orElseThrow().discarderPays(),
+                        honba,
+                        index == 0));
+            }
         }
         if (payableRiichiSticks > 0) {
             transfers.add(SettlementAggregator.riichiPool(winners.getFirst(), payableRiichiSticks));
@@ -689,6 +730,39 @@ public final class RiichiRound {
                 rules));
     }
 
+    private void registerPaoLiability(PlayerState caller, PlayerId feeder) {
+        Set<TileKind> openDragons = new HashSet<>();
+        Set<TileKind> openWinds = new HashSet<>();
+        for (Meld meld : caller.melds) {
+            if (!meld.open() || meld.type() == MeldType.CHII) continue;
+            TileKind kind = meld.tiles().getFirst().tile().kind();
+            if (kind.isDragon()) openDragons.add(kind);
+            if (kind.isWind()) openWinds.add(kind);
+        }
+        if (openDragons.size() == 3) {
+            caller.paoLiabilities.putIfAbsent(PaoKind.DAISANGEN, feeder);
+        }
+        if (openWinds.size() == 4) {
+            caller.paoLiabilities.putIfAbsent(PaoKind.DAISUUSHII, feeder);
+        }
+    }
+
+    private Optional<PaoAward> paoAward(PlayerState winner, ScoreResult score) {
+        for (YakuAward yaku : score.yaku()) {
+            PaoKind kind = switch (yaku.id()) {
+                case "DAISANGEN" -> PaoKind.DAISANGEN;
+                case "DAISUUSHII" -> PaoKind.DAISUUSHII;
+                default -> null;
+            };
+            if (kind == null || yaku.yakumanMultiplier() == 0) continue;
+            PlayerId liable = winner.paoLiabilities.get(kind);
+            if (liable != null) {
+                return Optional.of(new PaoAward(liable, yaku.yakumanMultiplier()));
+            }
+        }
+        return Optional.empty();
+    }
+
     private ReactionPlan kanRobberyPlan(
             PlayerId declarer,
             TileInstance tile,
@@ -745,6 +819,45 @@ public final class RiichiRound {
         }
     }
 
+    private void settleExhaustiveDraw(List<RoundEvent> events) {
+        tenpaiPlayers.clear();
+        nagashiWinners.clear();
+        for (PlayerId playerId : seats) {
+            PlayerState state = player(playerId);
+            if (handEvaluator.analyze(logical(state.hand), state.melds).tenpai()) {
+                tenpaiPlayers.add(playerId);
+            }
+            boolean nagashi = !state.discards.isEmpty()
+                    && state.calledDiscards.isEmpty()
+                    && state.discards.stream()
+                            .allMatch(tile -> tile.tile().kind().isTerminalOrHonor());
+            if (nagashi) nagashiWinners.add(playerId);
+        }
+
+        ArrayList<PaymentTransfer> transfers = new ArrayList<>();
+        String reason;
+        if (nagashiWinners.isEmpty()) {
+            List<PlayerId> notenPlayers = seats.stream()
+                    .filter(player -> !tenpaiPlayers.contains(player))
+                    .toList();
+            transfers.addAll(SettlementAggregator.noten(tenpaiPlayers, notenPlayers));
+            reason = "EXHAUSTIVE_DRAW";
+        } else {
+            for (PlayerId winner : nagashiWinners) {
+                boolean dealer = seatWind(winner) == Wind.EAST;
+                LinkedHashMap<PlayerId, Integer> payerAmounts = new LinkedHashMap<>();
+                for (PlayerId opponent : seats) {
+                    if (opponent.equals(winner)) continue;
+                    int amount = dealer || seatWind(opponent) == Wind.EAST ? 4_000 : 2_000;
+                    payerAmounts.put(opponent, amount);
+                }
+                transfers.addAll(SettlementAggregator.nagashiMangan(winner, payerAmounts));
+            }
+            reason = "NAGASHI_MANGAN";
+        }
+        finishSettlement(reason, transfers, false, events);
+    }
+
     private void afterUnclaimedDiscard(PlayerId discarder, List<RoundEvent> events) {
         if (pendingFourKanAbort) {
             end("FOUR_KANS", AbortiveDraw.FOUR_KANS, null, events);
@@ -759,7 +872,7 @@ public final class RiichiRound {
             return;
         }
         if (liveWall.isEmpty()) {
-            end("EXHAUSTIVE_DRAW", null, null, events);
+            settleExhaustiveDraw(events);
             return;
         }
         currentPlayerIndex = (seats.indexOf(discarder) + 1) % seats.size();
@@ -781,6 +894,14 @@ public final class RiichiRound {
     }
 
     private void finishSettlement(String reason, List<PaymentTransfer> transfers, List<RoundEvent> events) {
+        finishSettlement(reason, transfers, true, events);
+    }
+
+    private void finishSettlement(
+            String reason,
+            List<PaymentTransfer> transfers,
+            boolean consumeRiichiPool,
+            List<RoundEvent> events) {
         AggregatedSettlement prepared;
         LinkedHashMap<PlayerId, Integer> resultingScores = new LinkedHashMap<>();
         try {
@@ -798,7 +919,7 @@ public final class RiichiRound {
         }
         resultingScores.forEach((player, score) -> players.get(player).score = score);
         settlement = prepared;
-        riichiSticks = 0;
+        if (consumeRiichiPool) riichiSticks = 0;
         end(reason, null, settlement, events);
     }
 
@@ -958,6 +1079,18 @@ public final class RiichiRound {
             Map<PlayerId, ScoreResult> ronScores) {
     }
 
+    private enum PaoKind {
+        DAISANGEN,
+        DAISUUSHII
+    }
+
+    private record PaoAward(PlayerId liable, int multiplier) {
+        private PaoAward {
+            Objects.requireNonNull(liable, "liable");
+            if (multiplier < 1) throw new IllegalArgumentException("pao multiplier must be positive");
+        }
+    }
+
     private record PendingReaction(
             PlayerId source,
             TileInstance tile,
@@ -999,6 +1132,8 @@ public final class RiichiRound {
         private final List<TileInstance> hand;
         private final List<Meld> melds;
         private final List<TileInstance> discards = new ArrayList<>();
+        private final Set<TileId> calledDiscards = new LinkedHashSet<>();
+        private final Map<PaoKind, PlayerId> paoLiabilities = new EnumMap<>(PaoKind.class);
         private final FuritenState furiten = new FuritenState();
         private boolean riichi;
         private boolean doubleRiichi;
@@ -1020,6 +1155,8 @@ public final class RiichiRound {
             hand = new ArrayList<>(source.hand);
             melds = new ArrayList<>(source.melds);
             discards.addAll(source.discards);
+            calledDiscards.addAll(source.calledDiscards);
+            paoLiabilities.putAll(source.paoLiabilities);
             furiten.restore(source.furiten.snapshot());
             riichi = source.riichi;
             doubleRiichi = source.doubleRiichi;
