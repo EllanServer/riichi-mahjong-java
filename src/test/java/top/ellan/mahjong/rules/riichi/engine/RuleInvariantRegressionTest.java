@@ -207,7 +207,8 @@ class RuleInvariantRegressionTest {
                 .hand(A, List.of(discarded))
                 .hand(B, bHand)
                 .rinshan(List.of(tile(id, Tile.of(TileKind.S9))))
-                .doraIndicatorSequence(List.of(Tile.of(TileKind.EAST), Tile.of(TileKind.SOUTH)))
+                .doraIndicatorSequence(List.of(
+                        tile(id, Tile.of(TileKind.EAST)), tile(id, Tile.of(TileKind.SOUTH))))
                 .build();
         AtomicBoolean fail = new AtomicBoolean();
         HandEvaluator evaluator = (hand, melds) -> {

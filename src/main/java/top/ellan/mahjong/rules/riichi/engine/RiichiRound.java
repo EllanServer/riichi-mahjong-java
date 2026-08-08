@@ -51,8 +51,8 @@ public final class RiichiRound {
     private final Map<PlayerId, PlayerState> players = new LinkedHashMap<>();
     private final Deque<TileInstance> liveWall;
     private final Deque<TileInstance> rinshan;
-    private final List<Tile> doraIndicatorSequence;
-    private final List<Tile> uraDoraIndicatorSequence;
+    private final List<TileInstance> doraIndicatorSequence;
+    private final List<TileInstance> uraDoraIndicatorSequence;
     private final KanTracker kanTracker;
     private final Set<PlayerId> riichiPlayers = new LinkedHashSet<>();
     private final List<TileKind> firstDiscards = new ArrayList<>();
@@ -1073,11 +1073,19 @@ public final class RiichiRound {
     }
 
     private List<Tile> visibleDoraIndicators() {
-        return doraIndicatorSequence.subList(0, Math.min(revealedDoraCount, doraIndicatorSequence.size()));
+        return doraIndicatorSequence
+                .subList(0, Math.min(revealedDoraCount, doraIndicatorSequence.size()))
+                .stream()
+                .map(TileInstance::tile)
+                .toList();
     }
 
     private List<Tile> visibleUraDoraIndicators() {
-        return uraDoraIndicatorSequence.subList(0, Math.min(revealedDoraCount, uraDoraIndicatorSequence.size()));
+        return uraDoraIndicatorSequence
+                .subList(0, Math.min(revealedDoraCount, uraDoraIndicatorSequence.size()))
+                .stream()
+                .map(TileInstance::tile)
+                .toList();
     }
 
     private CommandResult rejected(RuleViolation violation, String message) {

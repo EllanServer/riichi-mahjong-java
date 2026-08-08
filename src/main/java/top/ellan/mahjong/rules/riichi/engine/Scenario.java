@@ -33,8 +33,8 @@ public record Scenario(
         Map<PlayerId, List<Meld>> melds,
         List<TileInstance> liveWall,
         List<TileInstance> rinshan,
-        List<Tile> doraIndicatorSequence,
-        List<Tile> uraDoraIndicatorSequence,
+        List<TileInstance> doraIndicatorSequence,
+        List<TileInstance> uraDoraIndicatorSequence,
         int currentPlayerIndex,
         RoundPhase phase,
         Map<PlayerId, Integer> kanCounts) {
@@ -100,8 +100,8 @@ public record Scenario(
         seats.forEach(player -> {
             melds.put(player, List.of());
         });
-        List<Tile> doraSequence = List.of(8, 6, 4, 2, 0).stream().map(deadWall::get).map(TileInstance::tile).toList();
-        List<Tile> uraSequence = List.of(9, 7, 5, 3, 1).stream().map(deadWall::get).map(TileInstance::tile).toList();
+        List<TileInstance> doraSequence = List.of(8, 6, 4, 2, 0).stream().map(deadWall::get).toList();
+        List<TileInstance> uraSequence = List.of(9, 7, 5, 3, 1).stream().map(deadWall::get).toList();
         return new Scenario(
                 rules, seats, dealerIndex, roundWind, honba, riichiSticks, scores, hands, melds,
                 wall, deadWall.subList(10, 14), doraSequence, uraSequence,
@@ -167,6 +167,8 @@ public record Scenario(
                 .forEach(tile -> recordPhysical(tile, ids, copies, redCopies));
         liveWall.forEach(tile -> recordPhysical(tile, ids, copies, redCopies));
         rinshan.forEach(tile -> recordPhysical(tile, ids, copies, redCopies));
+        doraIndicatorSequence.forEach(tile -> recordPhysical(tile, ids, copies, redCopies));
+        uraDoraIndicatorSequence.forEach(tile -> recordPhysical(tile, ids, copies, redCopies));
         copies.forEach((kind, count) -> {
             if (count > 4) throw new IllegalArgumentException("more than four copies of " + kind + " in scenario");
         });
@@ -210,8 +212,8 @@ public record Scenario(
         private final Map<PlayerId, List<Meld>> melds = new LinkedHashMap<>();
         private List<TileInstance> liveWall = List.of();
         private List<TileInstance> rinshan = List.of();
-        private List<Tile> doraSequence = List.of();
-        private List<Tile> uraSequence = List.of();
+        private List<TileInstance> doraSequence = List.of();
+        private List<TileInstance> uraSequence = List.of();
         private int current;
         private RoundPhase phase = RoundPhase.AWAITING_DRAW;
         private Map<PlayerId, Integer> kanCounts = Map.of();
@@ -240,8 +242,8 @@ public record Scenario(
         public Builder phase(RoundPhase value) { phase = value; return this; }
         public Builder liveWall(List<TileInstance> value) { liveWall = List.copyOf(value); return this; }
         public Builder rinshan(List<TileInstance> value) { rinshan = List.copyOf(value); return this; }
-        public Builder doraIndicatorSequence(List<Tile> value) { doraSequence = List.copyOf(value); return this; }
-        public Builder uraDoraIndicatorSequence(List<Tile> value) { uraSequence = List.copyOf(value); return this; }
+        public Builder doraIndicatorSequence(List<TileInstance> value) { doraSequence = List.copyOf(value); return this; }
+        public Builder uraDoraIndicatorSequence(List<TileInstance> value) { uraSequence = List.copyOf(value); return this; }
         public Builder kanCounts(Map<PlayerId, Integer> value) { kanCounts = Map.copyOf(value); return this; }
 
         public Builder score(PlayerId player, int value) {

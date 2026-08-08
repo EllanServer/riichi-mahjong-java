@@ -102,7 +102,8 @@ class KanFlowRegressionTest {
                 .melds(A, List.of(pon))
                 .liveWall(List.of(tile(id, TileKind.NORTH)))
                 .rinshan(List.of(rinshan))
-                .doraIndicatorSequence(List.of(Tile.of(TileKind.EAST), Tile.of(TileKind.SOUTH)))
+                .doraIndicatorSequence(List.of(
+                        tile(id, TileKind.EAST), tile(id, TileKind.SOUTH)))
                 .build();
         RiichiRound round = RiichiRound.fromScenario(scenario, NOT_TENPAI, NEVER_SCORE);
 
