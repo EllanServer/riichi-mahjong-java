@@ -17,6 +17,6 @@ annotations 13.0. Those components remain under their respective upstream
 licenses and are listed in THIRD_PARTY_LICENSES.md. No mahjong-utils, Kotlin,
 or kotlinx type is part of this project's public API.
 
-Rule-profile references checked 2026-08-08:
+Rule-profile references checked 2026-08-09:
   Mahjong Soul four-player rules: https://mahjongsoul.com/news/46
   Mahjong Soul FAQ:               https://mahjongsoul.com/faq

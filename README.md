@@ -34,7 +34,8 @@ ordinary no-yaku result.
 - deterministic round-start/fixture `Scenario` construction and replayable command results;
 - copy-on-write `RiichiRoundEngine` revisions for isolated actor/async transitions;
 - draw, discard, riichi declaration, chi/pon/open-kan reactions, priority and post-call kuikae;
-- non-riichi ankan legality, explicit fifth-kan rejection on both self and discard-reaction paths;
+- ankan/kakan, explicit chankan windows, Kokushi-only ankan robbery, and riichi-ankan wait preservation;
+- fifth-kan rejection on self/discard paths and profile-specific open-kan dora timing;
 - one-shot reactions, own/temporary/riichi furiten and ippatsu interruption;
 - nine-terminals, four-winds, four-riichi and multi-player four-kan abortive-draw triggers;
 - ron/tsumo settlement, honba/riichi pool, and per-player payment aggregation;
@@ -50,7 +51,6 @@ backend, covering closed 13/14-tile hands and 1-4 legal melds.
 The command core rejects rather than guesses when a scenario asks it to:
 
 - continue into match-length extension / final ranking policy;
-- perform kakan or riichi-ankan wait preservation; possible Kokushi ankan robbery is also rejected pending a reaction window;
 - auto-register Daisangen/Daisuushii liability from calls inside `RiichiRound` (use `PaoPaymentCalculator` after adapter tracking);
 - calculate exhaustive-draw tenpai/noten payments, nagashi mangan, or dealer continuation;
 - score renhou or serialize/restore an already-open reaction window or ended round;
@@ -72,6 +72,6 @@ dora timing. New behavior requires a versioned rule fixture and regression test.
 - [Mahjong Soul official four-player rules](https://mahjongsoul.com/news/46)
 - [Mahjong Soul official FAQ](https://mahjongsoul.com/faq)
 
-These official pages were checked on 2026-08-08. The platform pages are the
+These official pages were checked on 2026-08-09. The platform pages are the
 profile reference; mahjong-utils remains an implementation dependency and is
 not treated as the authority for platform timing, state or settlement rules.

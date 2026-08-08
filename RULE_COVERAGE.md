@@ -12,8 +12,8 @@ not a claim that mahjong-utils is the authority for every platform rule.
 | Dora / ura / red dora | Implemented around backend | Repeated indicators count independently; bonus han cannot satisfy minimum-yaku-han. |
 | Kazoe / kiriage labels | Implemented | Public `Limit` and backend payments follow the configured toggles. |
 | Chi / pon / daiminkan | Implemented | Seat priority, physical chi alternatives, red/non-red alternatives and kuikae are tested. |
-| Ankan | Partial, fail-closed | Non-riichi ankan works. Riichi wait preservation and a positive Kokushi robbery window are rejected. |
-| Kakan / chankan window | Not implemented | Direct `ScoreRequest` can score chankan, but the round command flow rejects kakan. |
+| Ankan | Implemented core | Riichi declarations require the drawn fourth tile and preserve the exact wait set; only a scored Kokushi hand may rob an ankan. |
+| Kakan / chankan window | Implemented core | A pon is upgraded only after the ron-only reaction window closes; robbery leaves the original pon and removes only the added tile. |
 | Kan limit / suukaikan | Implemented | Fifth kan rejected on self and discard paths; four kans by one player continue, otherwise abort after the post-rinshan discard. |
 | Kan dora timing | Implemented profiles | Mahjong Soul delayed open-kan reveal and early compatibility timing are distinct. |
 | Last live-wall tile | Implemented | Only ron is offered after the final discard; no kan/call is allowed. |

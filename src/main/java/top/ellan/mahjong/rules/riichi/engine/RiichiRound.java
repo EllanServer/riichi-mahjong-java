@@ -59,7 +59,7 @@ public final class RiichiRound {
     private int honba;
     private int riichiSticks;
     private RoundPhase phase;
-    private PendingDiscard pendingDiscard;
+    private PendingReaction pendingReaction;
     private boolean firstTurnUninterrupted = true;
     private boolean anyCallMade;
     private boolean pendingFourKanAbort;
@@ -120,12 +120,13 @@ public final class RiichiRound {
         kanTracker = new KanTracker(source.kanTracker.byPlayer());
         riichiPlayers.addAll(source.riichiPlayers);
         firstDiscards.addAll(source.firstDiscards);
-        pendingDiscard = source.pendingDiscard == null ? null : new PendingDiscard(
-                source.pendingDiscard.discarder,
-                source.pendingDiscard.tile,
-                source.pendingDiscard.window.copy(),
-                source.pendingDiscard.ronScores,
-                source.pendingDiscard.riichiDeclaration);
+        pendingReaction = source.pendingReaction == null ? null : new PendingReaction(
+                source.pendingReaction.source,
+                source.pendingReaction.tile,
+                source.pendingReaction.window.copy(),
+                source.pendingReaction.ronScores,
+                source.pendingReaction.riichiDeclaration,
+                source.pendingReaction.pendingKan);
         firstTurnUninterrupted = source.firstTurnUninterrupted;
         anyCallMade = source.anyCallMade;
         pendingFourKanAbort = source.pendingFourKanAbort;
@@ -219,7 +220,9 @@ public final class RiichiRound {
     }
 
     public Optional<ReactionOptions> availableReactions(PlayerId player) {
-        return pendingDiscard == null ? Optional.empty() : Optional.ofNullable(pendingDiscard.window.options().get(player));
+        return pendingReaction == null
+                ? Optional.empty()
+                : Optional.ofNullable(pendingReaction.window.options().get(player));
     }
 
     private void draw(PlayerId player, List<RoundEvent> events) {
@@ -298,14 +301,15 @@ public final class RiichiRound {
         }
         ReactionWindow window = new ReactionWindow(
                 priorityAfter(playerId), plan.options, rules.ronMode(), kanTracker);
-        pendingDiscard = new PendingDiscard(playerId, discarded, window, plan.ronScores, declareRiichi);
+        pendingReaction = new PendingReaction(
+                playerId, discarded, window, plan.ronScores, declareRiichi, Optional.empty());
         phase = RoundPhase.AWAITING_REACTIONS;
         events.add(RoundEvent.of(RoundEvent.Type.REACTION_OPENED, playerId, discarded, "discard reactions"));
     }
 
     private void respond(PlayerId playerId, Reaction reaction, List<RoundEvent> events) {
         requirePhase(RoundPhase.AWAITING_REACTIONS);
-        PendingDiscard pending = Objects.requireNonNull(pendingDiscard, "pendingDiscard");
+        PendingReaction pending = Objects.requireNonNull(pendingReaction, "pendingReaction");
         validateReactionTiles(playerId, reaction, pending.tile);
         ReactionOptions options = pending.window.options().get(playerId);
         PlayerState responder = player(playerId);
@@ -323,14 +327,19 @@ public final class RiichiRound {
             }
         } catch (EvaluationException | RuleViolationException error) {
             responder.furiten.restore(furitenCheckpoint);
-            pendingDiscard = new PendingDiscard(
-                    pending.discarder, pending.tile, windowCheckpoint, pending.ronScores, pending.riichiDeclaration);
+            pendingReaction = new PendingReaction(
+                    pending.source,
+                    pending.tile,
+                    windowCheckpoint,
+                    pending.ronScores,
+                    pending.riichiDeclaration,
+                    pending.pendingKan);
             throw error;
         }
     }
 
     private void resolveReactions(
-            PendingDiscard pending,
+            PendingReaction pending,
             ReactionResolution resolution,
             List<RoundEvent> events) {
         if (!resolution.ronWinners().isEmpty()) {
@@ -338,8 +347,12 @@ public final class RiichiRound {
             return;
         }
         if (resolution.caller().isEmpty()) {
-            pendingDiscard = null;
-            afterUnclaimedDiscard(pending.discarder, events);
+            pendingReaction = null;
+            if (pending.pendingKan.isPresent()) {
+                completeSelfKan(pending.source, pending.pendingKan.orElseThrow(), events);
+            } else {
+                afterUnclaimedDiscard(pending.source, events);
+            }
             return;
         }
         PlayerId callerId = resolution.caller().orElseThrow();
@@ -357,7 +370,7 @@ public final class RiichiRound {
         Meld meld = new Meld(
                 type,
                 meldTiles,
-                Optional.of(pending.discarder),
+                Optional.of(pending.source),
                 Optional.of(pending.tile.id()));
         caller.hand.removeAll(consumed);
         caller.melds.add(meld);
@@ -367,7 +380,7 @@ public final class RiichiRound {
             case MINKAN -> Set.of();
             case ANKAN, KAKAN -> throw new IllegalStateException("not a discard reaction");
         };
-        pendingDiscard = null;
+        pendingReaction = null;
         anyCallMade = true;
         firstTurnUninterrupted = false;
         cancelIppatsu();
@@ -406,34 +419,142 @@ public final class RiichiRound {
                     RuleViolation.ILLEGAL_PHASE, "a kan is forbidden after the last live-wall draw");
         }
         PlayerState state = player(playerId);
-        if (state.riichi || state.doubleRiichi) {
-            throw new RuleViolationException(
-                    RuleViolation.UNSUPPORTED_RULE_FLOW,
-                    "phase 1 fails closed for riichi ankan wait-preservation validation");
-        }
         List<TileInstance> matching = state.hand.stream()
                 .filter(tile -> tile.tile().kind() == kind)
                 .toList();
-        if (matching.size() != 4) {
-            throw new RuleViolationException(
-                    RuleViolation.UNSUPPORTED_RULE_FLOW,
-                    "phase 1 self-kan requires an ankan; kakan/chankan is fail-closed");
+
+        PendingKan pendingKan;
+        TileInstance robbableTile;
+        boolean kokushiOnly;
+        if (matching.size() == 4) {
+            Meld ankan = new Meld(MeldType.ANKAN, matching, Optional.empty(), Optional.empty());
+            if (state.riichi || state.doubleRiichi) {
+                validateRiichiAnkan(state, kind, matching, ankan);
+            }
+            robbableTile = matching.stream()
+                    .filter(tile -> tile.id().equals(state.lastDrawn))
+                    .findFirst()
+                    .orElse(matching.getFirst());
+            pendingKan = new PendingKan(MeldType.ANKAN, ankan, -1, matching);
+            kokushiOnly = true;
+        } else {
+            if (state.riichi || state.doubleRiichi) {
+                throw new RuleViolationException(
+                        RuleViolation.ILLEGAL_PHASE, "a riichi player cannot declare kakan");
+            }
+            int ponIndex = findPonIndex(state, kind);
+            if (matching.size() != 1 || ponIndex < 0) {
+                throw new RuleViolationException(
+                        RuleViolation.ILLEGAL_PHASE, "self-kan requires four concealed tiles or a pon plus its fourth tile");
+            }
+            Meld pon = state.melds.get(ponIndex);
+            robbableTile = matching.getFirst();
+            ArrayList<TileInstance> completedTiles = new ArrayList<>(pon.tiles());
+            completedTiles.add(robbableTile);
+            Meld kakan = new Meld(
+                    MeldType.KAKAN,
+                    completedTiles,
+                    pon.claimedFrom(),
+                    pon.claimedTile());
+            pendingKan = new PendingKan(MeldType.KAKAN, kakan, ponIndex, List.of(robbableTile));
+            kokushiOnly = false;
         }
-        if (ankanKokushiChankanPossible(playerId, matching.getFirst().tile())) {
-            throw new RuleViolationException(
-                    RuleViolation.UNSUPPORTED_RULE_FLOW,
-                    "Kokushi ankan robbery requires an explicit chankan window");
+
+        events.add(RoundEvent.of(
+                RoundEvent.Type.KAN_DECLARED, playerId, robbableTile, pendingKan.type.name()));
+        ReactionPlan robberyPlan = kanRobberyPlan(playerId, robbableTile, kokushiOnly);
+        if (robberyPlan.options.isEmpty()) {
+            completeSelfKan(playerId, pendingKan, events);
+            return;
         }
-        Meld ankan = new Meld(MeldType.ANKAN, matching, Optional.empty(), Optional.empty());
+
+        ReactionWindow window = new ReactionWindow(
+                priorityAfter(playerId), robberyPlan.options, rules.ronMode(), kanTracker);
+        pendingReaction = new PendingReaction(
+                playerId,
+                robbableTile,
+                window,
+                robberyPlan.ronScores,
+                false,
+                Optional.of(pendingKan));
+        phase = RoundPhase.AWAITING_REACTIONS;
+        events.add(RoundEvent.of(
+                RoundEvent.Type.REACTION_OPENED, playerId, robbableTile, "kan robbery reactions"));
+    }
+
+    private void validateRiichiAnkan(
+            PlayerState state,
+            TileKind kind,
+            List<TileInstance> matching,
+            Meld ankan) {
+        TileInstance drawn = state.lastDrawn == null ? null : state.find(state.lastDrawn).orElse(null);
+        if (drawn == null || drawn.tile().kind() != kind) {
+            throw new RuleViolationException(
+                    RuleViolation.ILLEGAL_PHASE,
+                    "riichi ankan must use the tile drawn on this turn");
+        }
+
+        ArrayList<TileInstance> beforeKan = new ArrayList<>(state.hand);
+        beforeKan.remove(drawn);
+        HandAnalysis before = handEvaluator.analyze(logical(beforeKan), state.melds);
+
+        ArrayList<TileInstance> afterKan = new ArrayList<>(state.hand);
+        afterKan.removeAll(matching);
+        ArrayList<Meld> meldsAfter = new ArrayList<>(state.melds);
+        meldsAfter.add(ankan);
+        HandAnalysis after = handEvaluator.analyze(logical(afterKan), meldsAfter);
+        if (!before.tenpai() || !after.tenpai() || !before.waits().equals(after.waits())) {
+            throw new RuleViolationException(
+                    RuleViolation.RIICHI_KAN_CHANGES_WAIT,
+                    "riichi ankan must preserve the exact winning-tile set");
+        }
+    }
+
+    private int findPonIndex(PlayerState state, TileKind kind) {
+        for (int index = 0; index < state.melds.size(); index++) {
+            Meld meld = state.melds.get(index);
+            if (meld.type() == MeldType.PON && meld.tiles().getFirst().tile().kind() == kind) {
+                return index;
+            }
+        }
+        return -1;
+    }
+
+    private void completeSelfKan(PlayerId playerId, PendingKan pendingKan, List<RoundEvent> events) {
+        PlayerState state = player(playerId);
+        if (!state.hand.containsAll(pendingKan.handTiles)) {
+            throw new RuleViolationException(
+                    RuleViolation.TILE_NOT_IN_HAND, "self-kan tile is no longer in hand");
+        }
+        if (pendingKan.type == MeldType.KAKAN) {
+            if (pendingKan.replacedMeldIndex >= state.melds.size()
+                    || state.melds.get(pendingKan.replacedMeldIndex).type() != MeldType.PON) {
+                throw new RuleViolationException(
+                        RuleViolation.ILLEGAL_PHASE, "the pon upgraded by kakan is no longer present");
+            }
+        }
+
         KanTracker.Registration registration = kanTracker.registerSelfKan(playerId);
         pendingFourKanAbort |= registration == KanTracker.Registration.ABORT_AFTER_DISCARD;
-        revealNextDora();
-        state.hand.removeAll(matching);
-        state.melds.add(ankan);
+        state.hand.removeAll(pendingKan.handTiles);
+        if (pendingKan.type == MeldType.KAKAN) {
+            state.melds.set(pendingKan.replacedMeldIndex, pendingKan.completedMeld);
+        } else {
+            state.melds.add(pendingKan.completedMeld);
+        }
+        if (KanDoraPolicy.revealBeforeRinshan(rules.profile(), pendingKan.type)) {
+            revealNextDora();
+        } else {
+            pendingOpenKanDora = true;
+        }
         firstTurnUninterrupted = false;
         anyCallMade = true;
         cancelIppatsu();
-        events.add(RoundEvent.of(RoundEvent.Type.KAN_REGISTERED, playerId, matching.getFirst(), doraTiming(MeldType.ANKAN)));
+        events.add(RoundEvent.of(
+                RoundEvent.Type.KAN_REGISTERED,
+                playerId,
+                pendingKan.handTiles.getFirst(),
+                doraTiming(pendingKan.type)));
         drawRinshan(playerId, events);
     }
 
@@ -474,7 +595,7 @@ public final class RiichiRound {
         finishSettlement("TSUMO", transfers, events);
     }
 
-    private void resolveRon(PendingDiscard pending, List<PlayerId> winners, List<RoundEvent> events) {
+    private void resolveRon(PendingReaction pending, List<PlayerId> winners, List<RoundEvent> events) {
         boolean refundDeclaration = pending.riichiDeclaration;
         int payableRiichiSticks = refundDeclaration ? riichiSticks - 1 : riichiSticks;
         if (payableRiichiSticks < 0) {
@@ -483,7 +604,7 @@ public final class RiichiRound {
         }
         ArrayList<PaymentTransfer> transfers = new ArrayList<>();
         if (refundDeclaration) {
-            transfers.add(SettlementAggregator.riichiRefund(pending.discarder));
+            transfers.add(SettlementAggregator.riichiRefund(pending.source));
         }
         for (int index = 0; index < winners.size(); index++) {
             PlayerId winner = winners.get(index);
@@ -491,7 +612,7 @@ public final class RiichiRound {
             requireLegalWin(score);
             transfers.addAll(SettlementAggregator.ron(
                     winner,
-                    pending.discarder,
+                    pending.source,
                     score.ronPayment().orElseThrow().discarderPays(),
                     honba,
                     index == 0));
@@ -499,14 +620,17 @@ public final class RiichiRound {
         if (payableRiichiSticks > 0) {
             transfers.add(SettlementAggregator.riichiPool(winners.getFirst(), payableRiichiSticks));
         }
-        finishSettlement("RON", transfers, events);
-        pendingDiscard = null;
+        finishSettlement(pending.pendingKan.isPresent() ? "CHANKAN" : "RON", transfers, events);
+        if (pending.pendingKan.isPresent()) {
+            player(pending.source).hand.remove(pending.tile);
+        }
+        pendingReaction = null;
         if (refundDeclaration) {
-            PlayerState declarer = player(pending.discarder);
+            PlayerState declarer = player(pending.source);
             declarer.riichi = false;
             declarer.doubleRiichi = false;
             declarer.ippatsu = false;
-            riichiPlayers.remove(pending.discarder);
+            riichiPlayers.remove(pending.source);
         }
     }
 
@@ -565,18 +689,28 @@ public final class RiichiRound {
                 rules));
     }
 
-    private boolean ankanKokushiChankanPossible(PlayerId declarer, Tile tile) {
+    private ReactionPlan kanRobberyPlan(
+            PlayerId declarer,
+            TileInstance tile,
+            boolean kokushiOnly) {
+        LinkedHashMap<PlayerId, ReactionOptions> options = new LinkedHashMap<>();
+        LinkedHashMap<PlayerId, ScoreResult> ronScores = new LinkedHashMap<>();
         for (PlayerId candidateId : priorityAfter(declarer)) {
             PlayerState candidate = player(candidateId);
             HandAnalysis analysis = handEvaluator.analyze(logical(candidate.hand), candidate.melds);
-            if (!analysis.waits().contains(tile.kind()) || candidate.furiten.isFuriten(analysis.waits())) continue;
-            ScoreResult result = score(candidate, tile, false, WinMethod.RON, true);
-            if (result.eligibleByMinimumHan()
-                    && result.yaku().stream().anyMatch(yaku -> yaku.id().startsWith("KOKUSHIMUSO"))) {
-                return true;
+            if (!analysis.waits().contains(tile.tile().kind())
+                    || candidate.furiten.isFuriten(analysis.waits())) {
+                continue;
             }
+            ScoreResult result = score(candidate, tile.tile(), false, WinMethod.RON, true);
+            boolean legal = result.completeHand() && result.hasYaku() && result.eligibleByMinimumHan();
+            boolean kokushi = result.yaku().stream()
+                    .anyMatch(yaku -> yaku.id().startsWith("KOKUSHIMUSO"));
+            if (!legal || (kokushiOnly && !kokushi)) continue;
+            options.put(candidateId, new ReactionOptions(true, false, false, List.of()));
+            ronScores.put(candidateId, result);
         }
-        return false;
+        return new ReactionPlan(Map.copyOf(options), Map.copyOf(ronScores));
     }
 
     private void validateRiichi(PlayerState player, List<TileInstance> handAfterDiscard) {
@@ -824,12 +958,39 @@ public final class RiichiRound {
             Map<PlayerId, ScoreResult> ronScores) {
     }
 
-    private record PendingDiscard(
-            PlayerId discarder,
+    private record PendingReaction(
+            PlayerId source,
             TileInstance tile,
             ReactionWindow window,
             Map<PlayerId, ScoreResult> ronScores,
-            boolean riichiDeclaration) {
+            boolean riichiDeclaration,
+            Optional<PendingKan> pendingKan) {
+    }
+
+    private record PendingKan(
+            MeldType type,
+            Meld completedMeld,
+            int replacedMeldIndex,
+            List<TileInstance> handTiles) {
+        private PendingKan {
+            Objects.requireNonNull(type, "type");
+            Objects.requireNonNull(completedMeld, "completedMeld");
+            handTiles = List.copyOf(Objects.requireNonNull(handTiles, "handTiles"));
+            if (type != MeldType.ANKAN && type != MeldType.KAKAN) {
+                throw new IllegalArgumentException("pending self-kan must be ankan or kakan");
+            }
+            if (completedMeld.type() != type) {
+                throw new IllegalArgumentException("pending kan meld type mismatch");
+            }
+            if ((type == MeldType.ANKAN && replacedMeldIndex != -1)
+                    || (type == MeldType.KAKAN && replacedMeldIndex < 0)) {
+                throw new IllegalArgumentException("pending kan replacement index mismatch");
+            }
+            int expectedHandTiles = type == MeldType.ANKAN ? 4 : 1;
+            if (handTiles.size() != expectedHandTiles) {
+                throw new IllegalArgumentException("pending kan has invalid hand tile count");
+            }
+        }
     }
 
     private static final class PlayerState {
