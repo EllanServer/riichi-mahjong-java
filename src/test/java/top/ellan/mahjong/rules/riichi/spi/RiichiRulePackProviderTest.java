@@ -112,6 +112,15 @@ class RiichiRulePackProviderTest {
                         || tile.zone() == RuleViewZone.HAND)
                 .allMatch(tile -> !tile.faceUp()
                         && tile.visualId().value().equals("riichi:tile/back")));
+        assertEquals(12, publicView.tiles().stream()
+                .filter(tile -> tile.zone() == RuleViewZone.POINT_STICK)
+                .count());
+        assertTrue(publicView.tiles().stream()
+                .filter(tile -> tile.zone() == RuleViewZone.POINT_STICK)
+                .allMatch(tile -> tile.faceUp()
+                        && tile.owner().isPresent()
+                        && tile.visualId().value().matches(
+                                "riichi:stick/p(?:100|1000|5000|10000)")));
 
         top.ellan.mahjong.spi.PlayerId east = players.getFirst().playerId();
         PrivateRuleView privateView = provider.privateView(state, east, 7);

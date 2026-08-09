@@ -17,6 +17,9 @@ import java.util.Set;
 
 /** Projects domain state into public and authorized-private scene views. */
 public final class RiichiViewProjector {
+    private static final int[] POINT_STICK_DENOMINATIONS = {10_000, 5_000, 1_000, 100};
+    private static final int POINT_STICK_ID_BASE = RiichiProjectionIds.PHYSICAL_TILE_COUNT;
+    private static final int POINT_STICK_IDS_PER_SEAT = 512;
 
     public top.ellan.mahjong.spi.PublicRuleView publicView(
             RiichiMatchState match, long revision) {
@@ -67,6 +70,7 @@ public final class RiichiViewProjector {
         for (int index = 0; index < dora.size(); index++) {
             tiles.add(node(ids, dora.get(index), RiichiViewZone.INDICATOR, index, true));
         }
+        addPointSticks(match, snapshot.scores(), tiles);
 
         LinkedHashMap<String, String> attributes = new LinkedHashMap<>();
         attributes.put("profile", "mahjong-soul");
@@ -161,6 +165,44 @@ public final class RiichiViewProjector {
         String kind = tile.tile().kind().notation();
         return new top.ellan.mahjong.spi.TileVisualId(
                 tile.tile().red() ? "riichi:tile/" + kind + "r" : "riichi:tile/" + kind);
+    }
+
+    private static void addPointSticks(
+            RiichiMatchState match,
+            Map<PlayerId, Integer> scores,
+            List<top.ellan.mahjong.spi.RuleViewTile> tiles) {
+        for (int seat = 0; seat < match.seats().size(); seat++) {
+            int score = scores.getOrDefault(match.seats().get(seat), 0);
+            if (score < 0) {
+                continue;
+            }
+            if (score % 100 != 0) {
+                throw new IllegalStateException("Riichi score cannot be represented by point sticks");
+            }
+            int remaining = score;
+            int stickIndex = 0;
+            for (int denomination : POINT_STICK_DENOMINATIONS) {
+                int count = remaining / denomination;
+                remaining %= denomination;
+                for (int copy = 0; copy < count; copy++) {
+                    if (stickIndex >= POINT_STICK_IDS_PER_SEAT) {
+                        throw new IllegalStateException("Point-stick projection capacity exceeded");
+                    }
+                    tiles.add(new top.ellan.mahjong.spi.RuleViewTile(
+                            new top.ellan.mahjong.spi.TileInstanceId(
+                                    POINT_STICK_ID_BASE
+                                            + (long) seat * POINT_STICK_IDS_PER_SEAT
+                                            + stickIndex),
+                            new top.ellan.mahjong.spi.TileVisualId(
+                                    "riichi:stick/p" + denomination),
+                            Optional.of(new top.ellan.mahjong.spi.SeatId(seat)),
+                            top.ellan.mahjong.spi.RuleViewZone.POINT_STICK,
+                            8 + stickIndex,
+                            true));
+                    stickIndex++;
+                }
+            }
+        }
     }
 
     private static top.ellan.mahjong.spi.RuleViewZone spiZone(RiichiViewZone zone) {
