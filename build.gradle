@@ -1,5 +1,6 @@
 plugins {
     id 'java-library'
+    id 'com.gradleup.shadow' version '9.6.1'
 }
 
 group = 'top.ellan.mahjong.rules'
@@ -52,6 +53,7 @@ tasks.withType(Test).configureEach {
 
 tasks.named('jar') {
     archiveBaseName = 'riichi-rule-pack'
+    archiveClassifier = 'thin'
     manifest {
         attributes(
             'Mahjong-Rule-Id': 'riichi',
@@ -65,6 +67,12 @@ tasks.named('jar') {
         from 'NOTICE'
         from 'THIRD_PARTY_LICENSES.md'
     }
+}
+
+tasks.named('shadowJar') {
+    archiveBaseName = 'riichi-rule-pack'
+    archiveClassifier = ''
+    mergeServiceFiles()
 }
 
 def expectedMahjongUtilsSha256 = '0af586bf2d62fe60f91675e579a0e9e74d5deced1d23ecc63ebe3a1fb8219fa2'
@@ -102,9 +110,9 @@ tasks.named('check') {
 tasks.register('verifyRulePackJar') {
     group = 'verification'
     description = 'Checks the ServiceLoader entry and parent-loaded SPI boundary.'
-    dependsOn tasks.named('jar')
+    dependsOn tasks.named('shadowJar')
     doLast {
-        def archive = tasks.named('jar', Jar).get().archiveFile.get().asFile
+        def archive = tasks.named('shadowJar').get().archiveFile.get().asFile
         def names = []
         zipTree(archive).visit { details ->
             if (!details.directory) {
@@ -120,6 +128,9 @@ tasks.register('verifyRulePackJar') {
         if (!names.contains('META-INF/mahjong-rule-pack.properties')
             || !names.contains('assets/riichi/tile-visuals.properties')) {
             throw new GradleException('Rule pack jar is missing its static descriptor resources')
+        }
+        if (!names.any { name -> name.startsWith('io/github/ssttkkl/mahjongutils/') }) {
+            throw new GradleException('Riichi fat jar is missing its pinned mahjong-utils backend')
         }
     }
 }
