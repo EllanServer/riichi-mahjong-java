@@ -282,8 +282,8 @@ public final class RiichiViewProjector {
                 meldIndex,
                 type == MeldType.KAKAN ? physicalTileCount - 1 : physicalTileCount,
                 4,
-                new top.ellan.mahjong.spi.SeatId(ownerSeat),
-                new top.ellan.mahjong.spi.SeatId(sourceSeat),
+                ownerSeat,
+                sourceSeat,
                 role,
                 role == top.ellan.mahjong.spi.RuleMeldTileRole.ORDINARY
                         ? ordinaryOrdinal
