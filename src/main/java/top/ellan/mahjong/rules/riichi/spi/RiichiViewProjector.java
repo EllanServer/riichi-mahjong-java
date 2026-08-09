@@ -227,12 +227,9 @@ public final class RiichiViewProjector {
             RoundPhase phase,
             List<top.ellan.mahjong.spi.RuleViewTile> tiles) {
         TileId claimedTile = meld.claimedTile().orElse(null);
-        int claimedSlot = meld.claimedFrom()
-                .map(source -> calledDisplaySlot(
-                        seat, match.seats().indexOf(source), meld.tiles().size()))
-                .orElse(-1);
+        int sourceSeat = meld.claimedFrom().map(match.seats()::indexOf).orElse(-1);
         List<TileInstance> meldTiles = meld.tiles();
-        int nextFreeSlot = 0;
+        int ordinaryOrdinal = 0;
         for (int tileIndex = 0; tileIndex < meldTiles.size(); tileIndex++) {
             TileInstance tile = meldTiles.get(tileIndex);
             boolean faceUp = meldTileFaceUp(
@@ -240,25 +237,22 @@ public final class RiichiViewProjector {
             boolean addedTile = meld.type() == MeldType.KAKAN
                     && tileIndex == meldTiles.size() - 1;
             boolean claimed = claimedTile != null && tile.id().equals(claimedTile);
-            int displaySlot;
-            if (claimed || addedTile) {
-                displaySlot = claimedSlot;
+            top.ellan.mahjong.spi.RuleTilePresentation presentation;
+            if (sourceSeat < 0) {
+                presentation = top.ellan.mahjong.spi.RuleTilePresentation.natural(
+                        meldIndex * 4 + tileIndex);
             } else {
-                while (nextFreeSlot == claimedSlot) {
-                    nextFreeSlot++;
-                }
-                displaySlot = nextFreeSlot++;
+                presentation = meldPresentation(
+                        meld.type(),
+                        meldTiles.size(),
+                        meldIndex,
+                        seat,
+                        sourceSeat,
+                        claimed,
+                        addedTile,
+                        ordinaryOrdinal);
+                if (!claimed && !addedTile) ordinaryOrdinal++;
             }
-            int layoutIndex = meldIndex * 4 + displaySlot;
-            boolean sideways = claimed || addedTile;
-            top.ellan.mahjong.spi.RuleTilePresentation presentation =
-                    new top.ellan.mahjong.spi.RuleTilePresentation(
-                            layoutIndex,
-                            sideways
-                                    ? top.ellan.mahjong.spi.RuleTileRotation.CLOCKWISE
-                                    : top.ellan.mahjong.spi.RuleTileRotation.NATURAL,
-                            addedTile ? 1 : 0,
-                            false);
             tiles.add(node(
                     ids,
                     tile,
@@ -270,19 +264,30 @@ public final class RiichiViewProjector {
         }
     }
 
-    static int calledDisplaySlot(int callerSeat, int sourceSeat, int groupSize) {
-        if (callerSeat < 0 || callerSeat >= 4 || sourceSeat < 0 || sourceSeat >= 4) {
-            throw new IllegalArgumentException("called meld references an absent seat");
-        }
-        if (groupSize != 3 && groupSize != 4) {
-            throw new IllegalArgumentException("called meld must contain three or four tiles");
-        }
-        return switch (Math.floorMod(sourceSeat - callerSeat, 4)) {
-            case 3 -> 0;
-            case 2 -> 1;
-            case 1 -> groupSize - 1;
-            default -> throw new IllegalArgumentException("a player cannot call their own tile");
-        };
+    static top.ellan.mahjong.spi.RuleTilePresentation meldPresentation(
+            MeldType type,
+            int physicalTileCount,
+            int meldIndex,
+            int ownerSeat,
+            int sourceSeat,
+            boolean claimed,
+            boolean added,
+            int ordinaryOrdinal) {
+        top.ellan.mahjong.spi.RuleMeldTileRole role = added
+                ? top.ellan.mahjong.spi.RuleMeldTileRole.ADDED
+                : claimed
+                        ? top.ellan.mahjong.spi.RuleMeldTileRole.CLAIMED
+                        : top.ellan.mahjong.spi.RuleMeldTileRole.ORDINARY;
+        return top.ellan.mahjong.spi.RuleMeldPresentation.tile(
+                meldIndex,
+                type == MeldType.KAKAN ? physicalTileCount - 1 : physicalTileCount,
+                4,
+                new top.ellan.mahjong.spi.SeatId(ownerSeat),
+                new top.ellan.mahjong.spi.SeatId(sourceSeat),
+                role,
+                role == top.ellan.mahjong.spi.RuleMeldTileRole.ORDINARY
+                        ? ordinaryOrdinal
+                        : -1);
     }
 
     static boolean meldTileFaceUp(

@@ -173,17 +173,6 @@ class RiichiRulePackProviderTest {
     }
 
     @Test
-    void calledTilePositionIdentifiesTheDiscardingSeatOnARealTable() {
-        assertEquals(0, RiichiViewProjector.calledDisplaySlot(1, 0, 3));
-        assertEquals(1, RiichiViewProjector.calledDisplaySlot(0, 2, 3));
-        assertEquals(2, RiichiViewProjector.calledDisplaySlot(0, 1, 3));
-        assertEquals(3, RiichiViewProjector.calledDisplaySlot(0, 1, 4));
-        assertThrows(
-                IllegalArgumentException.class,
-                () -> RiichiViewProjector.calledDisplaySlot(0, 0, 3));
-    }
-
-    @Test
     void concealedKanUsesTwoOuterBacksAndTwoVisibleCenters() {
         assertFalse(RiichiViewProjector.meldTileFaceUp(
                 top.ellan.mahjong.rules.riichi.model.MeldType.ANKAN,
@@ -205,6 +194,54 @@ class RiichiRulePackProviderTest {
                 top.ellan.mahjong.rules.riichi.engine.RoundPhase.AWAITING_DRAW,
                 3,
                 4));
+    }
+
+    @Test
+    void addedKanStacksOnAThreePositionPonWithoutLeavingAGap() {
+        top.ellan.mahjong.spi.RuleTilePresentation claimed =
+                RiichiViewProjector.meldPresentation(
+                        top.ellan.mahjong.rules.riichi.model.MeldType.KAKAN,
+                        4,
+                        0,
+                        0,
+                        1,
+                        true,
+                        false,
+                        0);
+        top.ellan.mahjong.spi.RuleTilePresentation ordinary0 =
+                RiichiViewProjector.meldPresentation(
+                        top.ellan.mahjong.rules.riichi.model.MeldType.KAKAN,
+                        4,
+                        0,
+                        0,
+                        1,
+                        false,
+                        false,
+                        0);
+        top.ellan.mahjong.spi.RuleTilePresentation ordinary1 =
+                RiichiViewProjector.meldPresentation(
+                        top.ellan.mahjong.rules.riichi.model.MeldType.KAKAN,
+                        4,
+                        0,
+                        0,
+                        1,
+                        false,
+                        false,
+                        1);
+        top.ellan.mahjong.spi.RuleTilePresentation added =
+                RiichiViewProjector.meldPresentation(
+                        top.ellan.mahjong.rules.riichi.model.MeldType.KAKAN,
+                        4,
+                        0,
+                        0,
+                        1,
+                        false,
+                        true,
+                        0);
+        assertEquals(2, claimed.layoutIndex());
+        assertEquals(List.of(0, 1), List.of(ordinary0.layoutIndex(), ordinary1.layoutIndex()));
+        assertEquals(claimed.layoutIndex(), added.layoutIndex());
+        assertEquals(1, added.stackLevel());
     }
 
     @Test
