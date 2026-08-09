@@ -23,8 +23,42 @@ jobs:
       - name: Validate Gradle wrapper
         uses: gradle/actions/wrapper-validation@v6
 
+  rule-sdk:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout pinned MahjongPaper Rule SDK source
+        uses: actions/checkout@v7
+        with:
+          repository: EllanServer/MahjongEngine
+          ref: 242b48024a73364cfb614287c4c6d9ed224a862b
+          path: mahjong-engine
+          persist-credentials: false
+      - name: Set up JDK 21
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "21"
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v6
+      - name: Build pinned SPI and TCK candidate repository
+        working-directory: mahjong-engine
+        run: |
+          chmod +x ./gradlew
+          ./gradlew \
+            :mahjong-rule-spi:publishAllPublicationsToTestRepository \
+            :mahjong-rule-tck:publishAllPublicationsToTestRepository \
+            --no-daemon
+      - name: Upload pinned Rule SDK repository
+        uses: actions/upload-artifact@v7
+        with:
+          name: mahjong-rule-sdk-1.0.0-pinned
+          path: mahjong-engine/build/rule-sdk-repository
+          if-no-files-found: error
+
   verify:
-    needs: wrapper-validation
+    needs:
+      - wrapper-validation
+      - rule-sdk
     strategy:
       fail-fast: false
       matrix:
@@ -42,10 +76,19 @@ jobs:
           java-version: ${{ matrix.java }}
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v6
+      - name: Download pinned Rule SDK repository
+        uses: actions/download-artifact@v7
+        with:
+          name: mahjong-rule-sdk-1.0.0-pinned
+          path: .rule-sdk
       - name: Make Gradle wrapper executable
         run: chmod +x ./gradlew
       - name: Verify rules engine and pinned scoring backend
-        run: ./gradlew clean check jar javadoc --no-daemon
+        run: >-
+          ./gradlew
+          clean check jar javadoc
+          -PmahjongRuleSdkRepo="$GITHUB_WORKSPACE/.rule-sdk"
+          --no-daemon
       - name: Upload Java 21 candidate artifacts
         if: matrix.java == '21'
         uses: actions/upload-artifact@v7

@@ -6,6 +6,12 @@ group = 'top.ellan.mahjong.rules'
 version = '0.1.0-SNAPSHOT'
 
 repositories {
+    def ruleSdkRepo = providers.gradleProperty('mahjongRuleSdkRepo')
+    if (ruleSdkRepo.isPresent()) {
+        maven {
+            url = uri(ruleSdkRepo.get())
+        }
+    }
     mavenCentral()
 }
 
@@ -21,8 +27,12 @@ dependencies {
         version { strictly '0.7.7' }
     }
 
+    compileOnly 'top.ellan.mahjong:mahjong-rule-spi:1.0.0'
+
     testImplementation platform('org.junit:junit-bom:5.12.2')
     testImplementation 'org.junit.jupiter:junit-jupiter'
+    testImplementation 'top.ellan.mahjong:mahjong-rule-spi:1.0.0'
+    testImplementation 'top.ellan.mahjong:mahjong-rule-tck:1.0.0'
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 }
 
@@ -41,6 +51,15 @@ tasks.withType(Test).configureEach {
 }
 
 tasks.named('jar') {
+    archiveBaseName = 'riichi-rule-pack'
+    manifest {
+        attributes(
+            'Mahjong-Rule-Id': 'riichi',
+            'Mahjong-Rule-Version': project.version,
+            'Mahjong-SPI-Version': '1.0.0',
+            'Mahjong-State-Schema': '1'
+        )
+    }
     into('META-INF') {
         from 'LICENSE'
         from 'NOTICE'
@@ -78,6 +97,35 @@ tasks.register('verifyMahjongUtils') {
 
 tasks.named('check') {
     dependsOn tasks.named('verifyMahjongUtils')
+}
+
+tasks.register('verifyRulePackJar') {
+    group = 'verification'
+    description = 'Checks the ServiceLoader entry and parent-loaded SPI boundary.'
+    dependsOn tasks.named('jar')
+    doLast {
+        def archive = tasks.named('jar', Jar).get().archiveFile.get().asFile
+        def names = []
+        zipTree(archive).visit { details ->
+            if (!details.directory) {
+                names.add(details.relativePath.pathString)
+            }
+        }
+        if (names.any { name -> name.startsWith('top/ellan/mahjong/spi/') }) {
+            throw new GradleException('Rule pack jar must not bundle mahjong-rule-spi classes')
+        }
+        if (!names.contains('META-INF/services/top.ellan.mahjong.spi.RulePackProvider')) {
+            throw new GradleException('Rule pack jar has no RulePackProvider service descriptor')
+        }
+        if (!names.contains('META-INF/mahjong-rule-pack.properties')
+            || !names.contains('assets/riichi/tile-visuals.properties')) {
+            throw new GradleException('Rule pack jar is missing its static descriptor resources')
+        }
+    }
+}
+
+tasks.named('check') {
+    dependsOn tasks.named('verifyRulePackJar')
 }
 
 tasks.register('microbenchmark', JavaExec) {

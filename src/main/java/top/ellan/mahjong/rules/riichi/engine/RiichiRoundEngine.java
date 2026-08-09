@@ -30,7 +30,7 @@ public final class RiichiRoundEngine {
 
         return new RiichiRoundTransition(
                 true,
-                new RiichiRoundState(state.revision() + 1, fork),
+                state.advanced(fork, command),
                 result.events(),
                 Optional.empty(),
                 result.message());

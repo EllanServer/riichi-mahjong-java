@@ -42,6 +42,7 @@ import java.util.Set;
  * flows return a typed failure and never mutate state.
  */
 public final class RiichiRound {
+    private final Scenario scenario;
     private final RiichiRules rules;
     private final List<PlayerId> seats;
     private final int dealerIndex;
@@ -75,6 +76,7 @@ public final class RiichiRound {
     private AggregatedSettlement settlement;
 
     private RiichiRound(Scenario scenario, HandEvaluator evaluator, ScoreCalculator calculator) {
+        this.scenario = Objects.requireNonNull(scenario, "scenario");
         rules = scenario.rules();
         seats = scenario.seatOrder();
         dealerIndex = scenario.dealerIndex();
@@ -105,6 +107,7 @@ public final class RiichiRound {
     }
 
     private RiichiRound(RiichiRound source) {
+        scenario = source.scenario;
         rules = source.rules;
         seats = source.seats;
         dealerIndex = source.dealerIndex;
@@ -234,6 +237,179 @@ public final class RiichiRound {
         return pendingReaction == null
                 ? Optional.empty()
                 : Optional.ofNullable(pendingReaction.window.options().get(player));
+    }
+
+    /** The scenario that started this round; retained for integration-layer snapshotting. */
+    public Scenario scenario() {
+        return scenario;
+    }
+
+    /** Remaining live wall tiles in physical draw order. */
+    public List<TileInstance> liveWallCopy() {
+        return List.copyOf(liveWall);
+    }
+
+    /** Remaining rinshan tiles in draw order. */
+    public List<TileInstance> rinshanCopy() {
+        return List.copyOf(rinshan);
+    }
+
+    /** Dora indicators flipped so far, in physical order. */
+    public List<TileInstance> revealedDoraIndicators() {
+        int count = Math.min(revealedDoraCount, doraIndicatorSequence.size());
+        return List.copyOf(doraIndicatorSequence.subList(0, count));
+    }
+
+    /** All ura-dora indicators; the presentation layer decides when to expose them. */
+    public List<TileInstance> uraDoraIndicators() {
+        return List.copyOf(uraDoraIndicatorSequence);
+    }
+
+    /**
+     * All commands the given player may legally submit in the current round state.
+     * Returns an empty list when the player has no legal action.
+     */
+    public List<RoundCommand> legalCommands(PlayerId player) {
+        Objects.requireNonNull(player, "player");
+        if (phase == RoundPhase.ENDED || !players.containsKey(player)) {
+            return List.of();
+        }
+        if (phase == RoundPhase.AWAITING_REACTIONS) {
+            return legalReactions(player);
+        }
+        if (!currentPlayer().equals(player)) {
+            return List.of();
+        }
+        ArrayList<RoundCommand> commands = new ArrayList<>();
+        if (phase == RoundPhase.AWAITING_DRAW) {
+            commands.add(new RoundCommand.Draw(player));
+            return List.copyOf(commands);
+        }
+        PlayerState state = player(player);
+        for (TileInstance tile : state.hand) {
+            if (state.kuikaeForbidden.contains(tile.tile().kind())) {
+                continue;
+            }
+            commands.add(new RoundCommand.Discard(player, tile.id(), false));
+            if (mayDeclareRiichi(state, tile)) {
+                commands.add(new RoundCommand.Discard(player, tile.id(), true));
+            }
+        }
+        if (mayDeclareSelfKan(state)) {
+            for (TileKind kind : selfKanKinds(state)) {
+                commands.add(new RoundCommand.DeclareSelfKan(player, kind));
+            }
+        }
+        if (state.discards.isEmpty()
+                && AbortiveDrawRules.canDeclareNineTerminals(firstTurnUninterrupted, state.hand)) {
+            commands.add(new RoundCommand.DeclareNineTerminals(player));
+        }
+        if (state.lastDrawn != null && state.find(state.lastDrawn).isPresent()) {
+            try {
+                TileInstance winning = state.find(state.lastDrawn).orElseThrow();
+                ScoreResult score = score(state, winning.tile(), true, WinMethod.TSUMO, false);
+                requireLegalWin(score);
+                commands.add(new RoundCommand.DeclareTsumo(player));
+            } catch (EvaluationException | RuleViolationException notTsumo) {
+                // a hand that cannot legally tsumo simply omits the command
+            }
+        }
+        return List.copyOf(commands);
+    }
+
+    private boolean mayDeclareRiichi(PlayerState state, TileInstance tile) {
+        if (state.riichi || state.doubleRiichi || state.kuikaeForbidden.contains(tile.tile().kind())) {
+            return false;
+        }
+        if (state.melds.stream().anyMatch(Meld::open) || state.score < 1_000 || liveWall.size() < 4) {
+            return false;
+        }
+        ArrayList<TileInstance> afterDiscard = new ArrayList<>(state.hand);
+        afterDiscard.remove(tile);
+        try {
+            validateRiichi(state, afterDiscard);
+            return true;
+        } catch (EvaluationException | RuleViolationException notRiichi) {
+            return false;
+        }
+    }
+
+    private boolean mayDeclareSelfKan(PlayerState state) {
+        return kanTracker.canDeclareSelfKan()
+                && state.kuikaeForbidden.isEmpty()
+                && !rinshan.isEmpty()
+                && !liveWall.isEmpty();
+    }
+
+    private List<TileKind> selfKanKinds(PlayerState state) {
+        ArrayList<TileKind> kinds = new ArrayList<>(2);
+        EnumMap<TileKind, List<TileInstance>> byKind = new EnumMap<>(TileKind.class);
+        for (TileInstance tile : state.hand) {
+            byKind.computeIfAbsent(tile.tile().kind(), ignored -> new ArrayList<>()).add(tile);
+        }
+        for (TileKind kind : byKind.keySet()) {
+            List<TileInstance> matching = byKind.get(kind);
+            if (matching.size() == 4) {
+                if (state.riichi || state.doubleRiichi) {
+                    Meld ankan = new Meld(MeldType.ANKAN, matching, Optional.empty(), Optional.empty());
+                    try {
+                        validateRiichiAnkan(state, kind, matching, ankan);
+                        kinds.add(kind);
+                    } catch (EvaluationException | RuleViolationException changedWaits) {
+                        // a riichi ankan that changes waits is not offered
+                    }
+                } else {
+                    kinds.add(kind);
+                }
+            } else if (matching.size() == 1
+                    && findPonIndex(state, kind) >= 0
+                    && !(state.riichi || state.doubleRiichi)) {
+                kinds.add(kind);
+            }
+        }
+        return List.copyOf(kinds);
+    }
+
+    private List<RoundCommand> legalReactions(PlayerId player) {
+        if (pendingReaction == null) {
+            return List.of();
+        }
+        ReactionOptions options = pendingReaction.window.options().get(player);
+        if (options == null) {
+            return List.of();
+        }
+        PlayerState state = player(player);
+        ArrayList<RoundCommand> commands = new ArrayList<>();
+        if (options.ron()) {
+            commands.add(new RoundCommand.Respond(player, Reaction.ron()));
+        }
+        EnumMap<TileKind, List<TileInstance>> byKind = new EnumMap<>(TileKind.class);
+        for (TileInstance tile : state.hand) {
+            byKind.computeIfAbsent(tile.tile().kind(), ignored -> new ArrayList<>()).add(tile);
+        }
+        if (options.pon()) {
+            for (List<TileInstance> matches : byKind.values()) {
+                if (matches.size() >= 2) {
+                    commands.add(new RoundCommand.Respond(player, new Reaction(
+                            ReactionType.PON,
+                            List.of(matches.get(0).id(), matches.get(1).id()))));
+                }
+            }
+        }
+        if (options.minkan()) {
+            for (List<TileInstance> matches : byKind.values()) {
+                if (matches.size() >= 3) {
+                    commands.add(new RoundCommand.Respond(player, new Reaction(
+                            ReactionType.MINKAN,
+                            List.of(matches.get(0).id(), matches.get(1).id(), matches.get(2).id()))));
+                }
+            }
+        }
+        for (List<TileId> choice : options.chiiChoices()) {
+            commands.add(new RoundCommand.Respond(player, new Reaction(ReactionType.CHII, choice)));
+        }
+        commands.add(new RoundCommand.Respond(player, Reaction.skip()));
+        return List.copyOf(commands);
     }
 
     private void draw(PlayerId player, List<RoundEvent> events) {

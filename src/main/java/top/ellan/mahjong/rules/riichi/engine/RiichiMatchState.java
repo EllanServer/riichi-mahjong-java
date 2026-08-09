@@ -135,6 +135,16 @@ public final class RiichiMatchState {
         return handSerial;
     }
 
+    /** The root seed supplied when the match started. */
+    public long rootSeed() {
+        return rootSeed;
+    }
+
+    /** Deterministic per-hand seed derived from the root seed and the current hand serial. */
+    public long currentHandSeed() {
+        return mixSeed(rootSeed, handSerial);
+    }
+
     public RiichiMatchPosition position() {
         return position;
     }
@@ -221,8 +231,41 @@ public final class RiichiMatchState {
                 scores,
                 RiichiMatchPhase.ACTIVE_ROUND,
                 nextRound,
-                ranking,
+                RiichiMatchProgression.ranking(seats, scores),
                 Optional.empty(),
+                evaluator,
+                calculator);
+    }
+
+    /**
+     * Rebuilds a previously snapshot match. Ranking is recomputed deterministically
+     * from the recorded scores, and the round state must have been restored first.
+     */
+    public static RiichiMatchState restored(
+            long revision,
+            RiichiMatchRules rules,
+            List<PlayerId> seats,
+            long rootSeed,
+            long handSerial,
+            RiichiMatchPosition position,
+            Map<PlayerId, Integer> scores,
+            RiichiMatchPhase phase,
+            RiichiRoundState roundState,
+            Optional<String> endReason,
+            HandEvaluator evaluator,
+            ScoreCalculator calculator) {
+        return new RiichiMatchState(
+                revision,
+                rules,
+                seats,
+                rootSeed,
+                handSerial,
+                position,
+                scores,
+                phase,
+                roundState,
+                RiichiMatchProgression.ranking(seats, scores),
+                endReason,
                 evaluator,
                 calculator);
     }
