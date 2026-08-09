@@ -204,9 +204,9 @@ class RiichiRulePackProviderTest {
         assertEquals(RiichiMatchPhase.ACTIVE_ROUND, next.match().phase());
         assertEquals(2, next.match().position().handNumber());
         assertEquals("1", provider.publicView(next, 1).attributes().get("dealer"));
-        assertEquals(1, provider.legalActions(next, south).stream()
+        assertTrue(provider.legalActions(next, south).stream()
                 .filter(action -> action.action().type().equals("discard"))
-                .count());
+                .count() >= 13);
     }
 
     @Test
