@@ -83,7 +83,7 @@ class RiichiRulePackProviderTest {
 
         ScheduledRuleAction automated = provider.automatedAction(
                         state,
-                        List.of(new top.ellan.mahjong.spi.AutatedPlayerActions(
+                        List.of(new top.ellan.mahjong.spi.AutomatedPlayerActions(
                                 actor, legalActions)))
                 .orElseThrow();
 
