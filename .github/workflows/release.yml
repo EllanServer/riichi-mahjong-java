@@ -29,7 +29,7 @@ jobs:
         uses: actions/checkout@v7
         with:
           repository: EllanServer/MahjongEngine
-          ref: d4150d358d171c5ea9171a806a36b62a35930654
+          ref: aef1bbae6aececf8a8e8e89645a6ce1de72a2027
           path: .rule-sdk-source
           persist-credentials: false
       - uses: actions/setup-java@v5

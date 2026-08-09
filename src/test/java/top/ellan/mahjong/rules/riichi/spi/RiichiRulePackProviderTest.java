@@ -78,6 +78,7 @@ class RiichiRulePackProviderTest {
     @Test
     void automationChoosesAnAcceptedActionFromTheSuppliedRiichiActions() {
         RuleState state = provider.createMatch(setup());
+        assertTrue(provider.matchResult(state).isEmpty());
         top.ellan.mahjong.spi.PlayerId actor = players.getFirst().playerId();
         List<LegalAction> legalActions = provider.legalActions(state, actor);
 

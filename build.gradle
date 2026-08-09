@@ -4,7 +4,7 @@ plugins {
 }
 
 group = 'top.ellan.mahjong.rules'
-version = '2.0.0'
+version = '2.0.1'
 
 repositories {
     def ruleSdkRepo = providers.gradleProperty('mahjongRuleSdkRepo')
@@ -24,12 +24,12 @@ java {
 }
 
 dependencies {
-    compileOnly 'top.ellan.mahjong:mahjong-rule-spi:1.5.0'
+    compileOnly 'top.ellan.mahjong:mahjong-rule-spi:1.6.0'
 
     testImplementation platform('org.junit:junit-bom:5.12.2')
     testImplementation 'org.junit.jupiter:junit-jupiter'
-    testImplementation 'top.ellan.mahjong:mahjong-rule-spi:1.5.0'
-    testImplementation 'top.ellan.mahjong:mahjong-rule-tck:1.5.0'
+    testImplementation 'top.ellan.mahjong:mahjong-rule-spi:1.6.0'
+    testImplementation 'top.ellan.mahjong:mahjong-rule-tck:1.6.0'
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 }
 
@@ -54,7 +54,7 @@ tasks.named('jar') {
         attributes(
             'Mahjong-Rule-Id': 'riichi',
             'Mahjong-Rule-Version': project.version,
-            'Mahjong-SPI-Version': '1.5.0',
+            'Mahjong-SPI-Version': '1.6.0',
             'Mahjong-State-Schema': '1'
         )
     }

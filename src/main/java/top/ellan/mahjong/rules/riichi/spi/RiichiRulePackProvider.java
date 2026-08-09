@@ -19,7 +19,7 @@ public final class RiichiRulePackProvider implements top.ellan.mahjong.spi.RuleP
             new top.ellan.mahjong.spi.RuleId("riichi");
     public static final top.ellan.mahjong.spi.ProfileId PROFILE_ID =
             new top.ellan.mahjong.spi.ProfileId("mahjong-soul");
-    public static final String PACK_VERSION = "2.0.0";
+    public static final String PACK_VERSION = "2.0.1";
 
     private final top.ellan.mahjong.spi.RulePackDescriptor descriptor = descriptorValue();
     private final RiichiTransitionCoordinator transitions = new RiichiTransitionCoordinator();
@@ -164,6 +164,12 @@ public final class RiichiRulePackProvider implements top.ellan.mahjong.spi.RuleP
             top.ellan.mahjong.spi.RuleState state,
             List<top.ellan.mahjong.spi.AutomatedPlayerActions> candidates) {
         return automation.next(requireState(state), List.copyOf(candidates));
+    }
+
+    @Override
+    public java.util.Optional<top.ellan.mahjong.spi.RuleMatchResult> matchResult(
+            top.ellan.mahjong.spi.RuleState state) {
+        return RiichiMatchResults.from(requireState(state));
     }
 
     @Override
