@@ -41,6 +41,7 @@ import java.util.Set;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -169,6 +170,41 @@ class RiichiRulePackProviderTest {
         assertEquals(TransitionDisposition.REJECTED, forged.disposition());
         assertSame(state, forged.nextState());
         assertEquals("invalid_action_payload", forged.reasonCode());
+    }
+
+    @Test
+    void calledTilePositionIdentifiesTheDiscardingSeatOnARealTable() {
+        assertEquals(0, RiichiViewProjector.calledDisplaySlot(1, 0, 3));
+        assertEquals(1, RiichiViewProjector.calledDisplaySlot(0, 2, 3));
+        assertEquals(2, RiichiViewProjector.calledDisplaySlot(0, 1, 3));
+        assertEquals(3, RiichiViewProjector.calledDisplaySlot(0, 1, 4));
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> RiichiViewProjector.calledDisplaySlot(0, 0, 3));
+    }
+
+    @Test
+    void concealedKanUsesTwoOuterBacksAndTwoVisibleCenters() {
+        assertFalse(RiichiViewProjector.meldTileFaceUp(
+                top.ellan.mahjong.rules.riichi.model.MeldType.ANKAN,
+                top.ellan.mahjong.rules.riichi.engine.RoundPhase.AWAITING_DRAW,
+                0,
+                4));
+        assertTrue(RiichiViewProjector.meldTileFaceUp(
+                top.ellan.mahjong.rules.riichi.model.MeldType.ANKAN,
+                top.ellan.mahjong.rules.riichi.engine.RoundPhase.AWAITING_DRAW,
+                1,
+                4));
+        assertTrue(RiichiViewProjector.meldTileFaceUp(
+                top.ellan.mahjong.rules.riichi.model.MeldType.ANKAN,
+                top.ellan.mahjong.rules.riichi.engine.RoundPhase.AWAITING_DRAW,
+                2,
+                4));
+        assertFalse(RiichiViewProjector.meldTileFaceUp(
+                top.ellan.mahjong.rules.riichi.model.MeldType.ANKAN,
+                top.ellan.mahjong.rules.riichi.engine.RoundPhase.AWAITING_DRAW,
+                3,
+                4));
     }
 
     @Test

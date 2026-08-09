@@ -92,7 +92,14 @@ public final class RiichiViewProjector {
 
             List<Meld> melds = snapshot.melds().getOrDefault(player, List.of());
             for (int meldIndex = 0; meldIndex < melds.size(); meldIndex++) {
-                addMeld(ids, melds.get(meldIndex), seat, meldIndex, snapshot.phase(), tiles);
+                addMeld(
+                        match,
+                        ids,
+                        melds.get(meldIndex),
+                        seat,
+                        meldIndex,
+                        snapshot.phase(),
+                        tiles);
             }
         }
 
@@ -212,23 +219,38 @@ public final class RiichiViewProjector {
     }
 
     private static void addMeld(
+            RiichiMatchState match,
             RiichiProjectionIds ids,
             Meld meld,
             int seat,
             int meldIndex,
             RoundPhase phase,
             List<top.ellan.mahjong.spi.RuleViewTile> tiles) {
-        int claimedIndex = claimedIndex(meld);
+        TileId claimedTile = meld.claimedTile().orElse(null);
+        int claimedSlot = meld.claimedFrom()
+                .map(source -> calledDisplaySlot(
+                        seat, match.seats().indexOf(source), meld.tiles().size()))
+                .orElse(-1);
         List<TileInstance> meldTiles = meld.tiles();
+        int nextFreeSlot = 0;
         for (int tileIndex = 0; tileIndex < meldTiles.size(); tileIndex++) {
             TileInstance tile = meldTiles.get(tileIndex);
-            boolean faceUp = meld.type() != MeldType.ANKAN
-                    || phase == RoundPhase.ENDED
-                    || (tileIndex > 0 && tileIndex < meldTiles.size() - 1);
+            boolean faceUp = meldTileFaceUp(
+                    meld.type(), phase, tileIndex, meldTiles.size());
             boolean addedTile = meld.type() == MeldType.KAKAN
                     && tileIndex == meldTiles.size() - 1;
-            int layoutIndex = meldIndex * 4 + (addedTile ? claimedIndex : tileIndex);
-            boolean sideways = tileIndex == claimedIndex || addedTile;
+            boolean claimed = claimedTile != null && tile.id().equals(claimedTile);
+            int displaySlot;
+            if (claimed || addedTile) {
+                displaySlot = claimedSlot;
+            } else {
+                while (nextFreeSlot == claimedSlot) {
+                    nextFreeSlot++;
+                }
+                displaySlot = nextFreeSlot++;
+            }
+            int layoutIndex = meldIndex * 4 + displaySlot;
+            boolean sideways = claimed || addedTile;
             top.ellan.mahjong.spi.RuleTilePresentation presentation =
                     new top.ellan.mahjong.spi.RuleTilePresentation(
                             layoutIndex,
@@ -248,17 +270,29 @@ public final class RiichiViewProjector {
         }
     }
 
-    private static int claimedIndex(Meld meld) {
-        if (meld.claimedTile().isEmpty()) {
-            return -1;
+    static int calledDisplaySlot(int callerSeat, int sourceSeat, int groupSize) {
+        if (callerSeat < 0 || callerSeat >= 4 || sourceSeat < 0 || sourceSeat >= 4) {
+            throw new IllegalArgumentException("called meld references an absent seat");
         }
-        TileId claimed = meld.claimedTile().orElseThrow();
-        for (int index = 0; index < meld.tiles().size(); index++) {
-            if (meld.tiles().get(index).id().equals(claimed)) {
-                return index;
-            }
+        if (groupSize != 3 && groupSize != 4) {
+            throw new IllegalArgumentException("called meld must contain three or four tiles");
         }
-        throw new IllegalStateException("open meld lost its claimed tile");
+        return switch (Math.floorMod(sourceSeat - callerSeat, 4)) {
+            case 3 -> 0;
+            case 2 -> 1;
+            case 1 -> groupSize - 1;
+            default -> throw new IllegalArgumentException("a player cannot call their own tile");
+        };
+    }
+
+    static boolean meldTileFaceUp(
+            MeldType type, RoundPhase phase, int tileIndex, int groupSize) {
+        if (tileIndex < 0 || tileIndex >= groupSize) {
+            throw new IllegalArgumentException("meld tile index is outside its group");
+        }
+        return type != MeldType.ANKAN
+                || phase == RoundPhase.ENDED
+                || (tileIndex > 0 && tileIndex < groupSize - 1);
     }
 
     private static void addWallTile(
