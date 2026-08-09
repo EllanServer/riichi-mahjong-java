@@ -19,9 +19,9 @@ final class FuCalculator {
         if (pattern.shape() == Shape.KOKUSHI) return 30;
 
         int fu = 20;
-        if (pattern.wait() == Wait.TANKI
-                || pattern.wait() == Wait.KANCHAN
-                || pattern.wait() == Wait.PENCHAN) {
+        if (pattern.waitType() == Wait.TANKI
+                || pattern.waitType() == Wait.KANCHAN
+                || pattern.waitType() == Wait.PENCHAN) {
             fu += 2;
         }
 

@@ -44,7 +44,7 @@ final class YakuEvaluator {
     }
 
     static boolean isPinfu(HandPattern pattern, ScoreRequest request) {
-        if (pattern.shape() != Shape.STANDARD || !pattern.closed() || pattern.wait() != Wait.RYANMEN) {
+        if (pattern.shape() != Shape.STANDARD || !pattern.closed() || pattern.waitType() != Wait.RYANMEN) {
             return false;
         }
         if (pattern.groups().stream().anyMatch(group -> group.type() != GroupType.SEQUENCE)) {
@@ -78,10 +78,10 @@ final class YakuEvaluator {
         if (pattern.shape() == Shape.KOKUSHI) {
             addYakuman(
                     awards,
-                    pattern.wait() == Wait.TANKI
+                    pattern.waitType() == Wait.TANKI
                             ? "KOKUSHIMUSO_JUUSANMENMACHI"
                             : "KOKUSHIMUSO",
-                    pattern.wait() == Wait.TANKI ? doubleValue : 1);
+                    pattern.waitType() == Wait.TANKI ? doubleValue : 1);
             return;
         }
         if (pattern.shape() != Shape.STANDARD) {
@@ -93,7 +93,7 @@ final class YakuEvaluator {
 
         int concealedTriplets = concealedTriplets(pattern, request);
         if (concealedTriplets == 4) {
-            boolean tanki = pattern.wait() == Wait.TANKI;
+            boolean tanki = pattern.waitType() == Wait.TANKI;
             addYakuman(awards, tanki ? "SUANKO_TANKI" : "SUANKO", tanki ? doubleValue : 1);
         }
         int dragonTriplets = tripletCount(pattern, TileKind::isDragon);

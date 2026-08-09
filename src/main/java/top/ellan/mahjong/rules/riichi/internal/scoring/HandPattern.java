@@ -12,7 +12,7 @@ record HandPattern(
         Shape shape,
         List<Group> groups,
         TileKind pair,
-        Wait wait,
+        Wait waitType,
         int winningGroup,
         int[] counts,
         boolean closed) {
@@ -20,7 +20,7 @@ record HandPattern(
     HandPattern {
         Objects.requireNonNull(shape, "shape");
         groups = List.copyOf(Objects.requireNonNull(groups, "groups"));
-        Objects.requireNonNull(wait, "wait");
+        Objects.requireNonNull(waitType, "waitType");
         counts = Objects.requireNonNull(counts, "counts").clone();
         if (counts.length != TileKind.values().length) {
             throw new IllegalArgumentException("a scoring pattern requires 34 tile counts");
@@ -47,7 +47,7 @@ record HandPattern(
         if (group.type() != GroupType.TRIPLET || group.open()) return false;
         return !(request.winMethod() == WinMethod.RON
                 && index == winningGroup
-                && wait == Wait.SHANPON);
+                && waitType == Wait.SHANPON);
     }
 
     enum Shape {
