@@ -1,17 +1,14 @@
 # riichi-mahjong-java
 
-Java 21 Japanese Riichi Mahjong phase-1 rules repository extracted from
-MahjongPaper. It contains no Bukkit, Paper, Adventure, database, UI, scheduler,
-or Kotlin source files, and every public type is Java under
+Java 21 Japanese Riichi Mahjong rules repository extracted from MahjongPaper.
+It contains no Bukkit, Paper, Adventure, database, UI, scheduler, Kotlin
+runtime, reflection bridge or native library. Every public type is Java under
 `top.ellan.mahjong.rules.riichi`.
 
-Shanten and physical-wait evaluation are native Java over compact 34-kind count
-vectors; this path does not load or invoke the scoring backend. Scoring still
-uses the pinned Kotlin artifact `mahjong-utils-jvm:0.7.7`, which resolves Kotlin
-stdlib and kotlinx.serialization transitively. A reflective internal scoring
-bridge prevents those implementation types from leaking into the public API.
-See [RULE_COVERAGE.md](RULE_COVERAGE.md) and
-[THIRD_PARTY_LICENSES.md](THIRD_PARTY_LICENSES.md).
+Shanten, physical waits and scoring are native Java over compact 34-kind count
+vectors. Scoring is split into structural decomposition, yaku recognition, fu,
+points and bonus counting; no string parsing occurs on the scoring hot path.
+See [RULE_COVERAGE.md](RULE_COVERAGE.md).
 
 ## Build
 
@@ -20,18 +17,18 @@ See [RULE_COVERAGE.md](RULE_COVERAGE.md) and
 ./gradlew microbenchmark
 ```
 
-`check` verifies the exact SHA-256 of the scoring backend in addition to running
-JUnit 5. The internal Java bridge owns all contact with that Kotlin library.
-Scoring failures throw `EvaluationException`; they are never reported as an
-ordinary no-yaku result.
+`check` runs JUnit 5, verifies the SPI boundary, rejects Kotlin/Kotlinx classes
+inside the fat JAR, and fails if production gains any third-party runtime
+artifact. Scoring failures throw `EvaluationException`; they are never reported
+as an ordinary no-yaku result.
 
 ## Supported phase-1 surface
 
 - immutable tile, tile-id, meld, rules, score request/result and settlement models;
 - native Java standard/seven-pairs/thirteen-orphans shanten and physical waits, including legal melds;
-- Riichi scoring through a Java public API backed by the pinned scoring runtime;
+- native Java Riichi scoring, including standard, seven-pairs and thirteen-orphans shapes;
 - per-suit red-five supply, repeated indicators, minimum-yaku-han enforcement and typed payments;
-- deterministic round-start/fixture `Scenario` construction and replayable command results;
+- deterministic round-start/fixture `Scenario` construction and complete replay snapshots;
 - copy-on-write `RiichiRoundEngine` revisions for isolated actor/async transitions;
 - draw, discard, riichi declaration, chi/pon/open-kan reactions, priority and post-call kuikae;
 - ankan/kakan, explicit chankan windows, Kokushi-only ankan robbery, and riichi-ankan wait preservation;
@@ -46,24 +43,29 @@ ordinary no-yaku result.
   and shanten-aware Riichi bot/trustee decisions from precomputed legal actions;
 - deterministic one-roll physical-wall opening metadata, with rendering and animation owned by CraftEngine.
 
-The migrated suite includes 42 named real-world yaku/yakuman examples plus
-state, settlement, fail-closed and model-invariant regressions. Native shanten
-also has a fixed-seed 12,000-hand differential corpus against the pinned former
-backend, covering closed 13/14-tile hands and 1-4 legal melds.
+The suite includes 42 named real-world yaku/yakuman examples plus state,
+settlement, fail-closed and model-invariant regressions. Native shanten also has
+an 8,000-hand deterministic metamorphic corpus: input order cannot change an
+answer and every reported physical wait must complete the hand.
 
 ## Explicitly fail-closed in phase 1
 
 The command core rejects rather than guesses when a scenario asks it to:
 
-- score renhou or serialize/restore an already-open reaction window or ended round;
-- derive bot decisions, persistence, or hidden-information views;
+- score renhou;
 - use flowers, jokers, unknown tiles, three-player walls, or a fifth physical copy.
 
-`Scenario` currently serializes only a draw/discard boundary and does not carry
-historical discards, riichi/furiten/ippatsu history, or pending reactions. For a
-fixture created directly in `AWAITING_DISCARD`, the final tile in the current
-player's hand is treated as the last draw. It must not be presented as an
-arbitrary mid-round persistence format.
+Provider snapshots encode the immutable match header, the complete physical
+starting scenario and every accepted revision-bound command. Restore replays
+that canonical log through the same pure transition engine. Open reaction
+windows, submitted reactions, pending kan robbery, discards, calls, riichi,
+furiten, ippatsu, dora state, settlement and ended rounds therefore restore to
+the same state hash and legal-action set. Snapshot schema and payload digest are
+validated before replay.
+
+For a fixture created directly in `AWAITING_DISCARD`, the final tile in the
+current player's hand is treated as the last draw. Production matches are
+always created from the deterministic provider entrypoint.
 
 Mahjong Soul four-player ranked rules are the baseline. `EARLY_KAN_DORA` is a
 compatibility profile whose only intended difference is successful open-kan
@@ -81,6 +83,5 @@ configuration and a bounded platform projection.
 - [Mahjong Soul official four-player rules](https://mahjongsoul.com/news/46)
 - [Mahjong Soul official FAQ](https://mahjongsoul.com/faq)
 
-These official pages were checked on 2026-08-09. The platform pages are the
-profile reference; mahjong-utils remains an implementation dependency and is
-not treated as the authority for platform timing, state or settlement rules.
+These official pages were checked on 2026-08-09 and remain the profile
+authority for scoring, timing, state and settlement behavior.

@@ -25,7 +25,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Random;
 
-/** JMH-free smoke benchmark for the native evaluator, score backend and command core. */
+/** JMH-free smoke benchmark for the native evaluator, native scorer and command core. */
 public final class RiichiMicrobenchmark {
     private static volatile int blackhole;
 
@@ -61,7 +61,7 @@ public final class RiichiMicrobenchmark {
         int scoringHotOperations = 10_000;
         int reactionOperations = 10_000;
 
-        // Initialize and JIT the score backend with a key excluded from the cold corpus.
+        // Initialize and JIT the native scorer with a key excluded from the cold corpus.
         for (int index = 0; index < 50; index++) consume(calculator.score(request));
 
         long scoringColdStart = System.nanoTime();
@@ -82,8 +82,8 @@ public final class RiichiMicrobenchmark {
         System.out.printf(
                 "native shanten cold (cache miss): %.1f ns/op (%d ops)%n"
                         + "native shanten hot (cache hit): %.1f ns/op (%d ops)%n"
-                        + "score backend cold (cache miss): %.1f ns/op (%d ops)%n"
-                        + "score backend hot (cache hit): %.1f ns/op (%d ops)%n"
+                        + "native score cold (cache miss): %.1f ns/op (%d ops)%n"
+                        + "native score hot (cache hit): %.1f ns/op (%d ops)%n"
                         + "reaction-window: %.1f ns/op (%d ops)%nblackhole=%d%n",
                 nativeColdNanos / (double) nativeColdHands.size(),
                 nativeColdHands.size(),

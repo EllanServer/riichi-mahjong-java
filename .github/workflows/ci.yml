@@ -83,10 +83,17 @@ jobs:
           path: .rule-sdk
       - name: Make Gradle wrapper executable
         run: chmod +x ./gradlew
-      - name: Verify rules engine and pinned scoring backend
+      - name: Verify pure Java rules engine and runtime boundary
         run: >-
           ./gradlew
           clean check jar javadoc
+          -PmahjongRuleSdkRepo="$GITHUB_WORKSPACE/.rule-sdk"
+          --no-daemon
+      - name: Run pure Java smoke benchmark
+        if: matrix.java == '21'
+        run: >-
+          ./gradlew
+          microbenchmark
           -PmahjongRuleSdkRepo="$GITHUB_WORKSPACE/.rule-sdk"
           --no-daemon
       - name: Upload Java 21 candidate artifacts

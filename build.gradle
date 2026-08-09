@@ -106,6 +106,24 @@ tasks.named('check') {
     dependsOn tasks.named('verifyRulePackJar')
 }
 
+tasks.register('verifyNoRuntimeDependencies') {
+    group = 'verification'
+    description = 'Fails if production code gains a third-party runtime artifact.'
+    doLast {
+        def artifacts = configurations.runtimeClasspath.resolvedConfiguration.resolvedArtifacts
+        if (!artifacts.empty) {
+            def coordinates = artifacts.collect { artifact ->
+                artifact.moduleVersion.id.toString()
+            }.sort()
+            throw new GradleException("Riichi production runtime must stay dependency-free: ${coordinates}")
+        }
+    }
+}
+
+tasks.named('check') {
+    dependsOn tasks.named('verifyNoRuntimeDependencies')
+}
+
 tasks.register('microbenchmark', JavaExec) {
     group = 'verification'
     description = 'Runs the JMH-free scoring and state-machine smoke benchmark (uses the normal runtime classpath).'

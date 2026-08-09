@@ -1,20 +1,8 @@
-# Third-party runtime notices
+# Third-party notices
 
-The Gradle `runtimeClasspath` resolves the following independent components.
-They are not copied into this repository's source and no third-party type is
-exposed by the public API.
-
-| Component | Version | License |
-| --- | --- | --- |
-| [mahjong-utils](https://github.com/ssttkkl/mahjong-utils) | 0.7.7 | MIT |
-| [Kotlin stdlib](https://github.com/JetBrains/kotlin) | 2.0.20 | Apache-2.0 |
-| [kotlinx.serialization core](https://github.com/Kotlin/kotlinx.serialization) | 1.7.0-RC | Apache-2.0 |
-| [JetBrains annotations](https://github.com/JetBrains/java-annotations) | 13.0 | Apache-2.0 |
-
-The Apache License 2.0 text is available from the
-[Apache Software Foundation](https://www.apache.org/licenses/LICENSE-2.0).
-Binary redistributors must retain the license and notices shipped by each
-resolved component.
+The production runtime has no third-party artifacts. Mahjong Utils 0.7.7 was
+used as a differential oracle during migration and is no longer resolved,
+loaded or packaged. Its permission notice is retained for provenance.
 
 ## mahjong-utils MIT license
 
