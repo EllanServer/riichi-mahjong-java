@@ -19,7 +19,7 @@ public final class RiichiRulePackProvider implements top.ellan.mahjong.spi.RuleP
             new top.ellan.mahjong.spi.RuleId("riichi");
     public static final top.ellan.mahjong.spi.ProfileId PROFILE_ID =
             new top.ellan.mahjong.spi.ProfileId("mahjong-soul");
-    public static final String PACK_VERSION = "0.1.0-SNAPSHOT";
+    public static final String PACK_VERSION = "2.0.0";
 
     private final top.ellan.mahjong.spi.RulePackDescriptor descriptor = descriptorValue();
     private final RiichiTransitionCoordinator transitions = new RiichiTransitionCoordinator();
