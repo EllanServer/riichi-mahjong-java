@@ -23,6 +23,8 @@ import top.ellan.mahjong.spi.PrivateRuleView;
 import top.ellan.mahjong.spi.PublicRuleView;
 import top.ellan.mahjong.spi.RuleAction;
 import top.ellan.mahjong.spi.RulePackProvider;
+import top.ellan.mahjong.spi.RulePresentationCue;
+import top.ellan.mahjong.spi.RulePresentationCueType;
 import top.ellan.mahjong.spi.RuleState;
 import top.ellan.mahjong.spi.RuleStateSnapshot;
 import top.ellan.mahjong.spi.RuleTransition;
@@ -280,6 +282,8 @@ class RiichiRulePackProviderTest {
                 .orElseThrow();
         RuleTransition advanced = provider.transition(state, east, discard.action());
         assertTrue(advanced.accepted());
+        assertTrue(advanced.presentationCues().contains(
+                RulePresentationCue.broadcast(RulePresentationCueType.TILE_DISCARD)));
 
         RuleStateSnapshot snapshot = provider.snapshot(advanced.nextState(), 1);
         RuleState restored = provider.restore(snapshot);
@@ -355,6 +359,11 @@ class RiichiRulePackProviderTest {
         assertEquals(RiichiScheduledActionPolicy.DRAW_DELAY, draw.delay());
         RuleTransition drawn = provider.transition(awaitingDraw, draw.actor(), draw.action());
         assertTrue(drawn.accepted());
+        assertTrue(drawn.presentationCues().contains(
+                RulePresentationCue.broadcast(RulePresentationCueType.TILE_DRAW)));
+        assertTrue(drawn.presentationCues().contains(RulePresentationCue.toPlayer(
+                RulePresentationCueType.TURN_CHANGE,
+                players.get(1).playerId())));
         assertEquals(
                 RoundPhase.AWAITING_DISCARD,
                 ((RiichiProviderState) drawn.nextState())

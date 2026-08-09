@@ -221,10 +221,12 @@ public final class RiichiRulePackProvider implements top.ellan.mahjong.spi.RuleP
         if (events.isEmpty()) {
             throw new IllegalStateException("accepted Riichi transition emitted no canonical event");
         }
+        RiichiProviderState next = current.withMatch(domain.state());
         return new top.ellan.mahjong.spi.RuleTransition(
-                current.withMatch(domain.state()),
+                next,
                 disposition(domain),
                 events,
+                RiichiPresentationCues.from(next, domain),
                 "accepted");
     }
 
