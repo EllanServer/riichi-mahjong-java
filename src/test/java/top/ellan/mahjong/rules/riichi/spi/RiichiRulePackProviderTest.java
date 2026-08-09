@@ -238,8 +238,8 @@ class RiichiRulePackProviderTest {
                         false,
                         true,
                         0);
-        assertEquals(2, claimed.layoutIndex());
-        assertEquals(List.of(0, 1), List.of(ordinary0.layoutIndex(), ordinary1.layoutIndex()));
+        assertEquals(3, claimed.layoutIndex());
+        assertEquals(List.of(1, 2), List.of(ordinary0.layoutIndex(), ordinary1.layoutIndex()));
         assertEquals(claimed.layoutIndex(), added.layoutIndex());
         assertEquals(1, added.stackLevel());
     }
