@@ -4,7 +4,7 @@ plugins {
 }
 
 group = 'top.ellan.mahjong.rules'
-version = '0.1.0-SNAPSHOT'
+version = '2.0.0'
 
 repositories {
     def ruleSdkRepo = providers.gradleProperty('mahjongRuleSdkRepo')

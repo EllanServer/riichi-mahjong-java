@@ -25,12 +25,27 @@ jobs:
         with:
           ref: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref }}
           fetch-depth: 0
+      - name: Checkout pinned MahjongPaper Rule SDK source
+        uses: actions/checkout@v7
+        with:
+          repository: EllanServer/MahjongEngine
+          ref: d4150d358d171c5ea9171a806a36b62a35930654
+          path: .rule-sdk-source
+          persist-credentials: false
       - uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: "21"
       - uses: gradle/actions/setup-gradle@v6
       - run: chmod +x ./gradlew
+      - name: Build pinned SPI and TCK repository
+        working-directory: .rule-sdk-source
+        run: |
+          chmod +x ./gradlew
+          ./gradlew \
+            :mahjong-rule-spi:publishAllPublicationsToTestRepository \
+            :mahjong-rule-tck:publishAllPublicationsToTestRepository \
+            --no-daemon
       - name: Validate immutable release metadata
         id: metadata
         shell: bash
@@ -50,8 +65,11 @@ jobs:
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
           echo "tag=$TAG" >> "$GITHUB_OUTPUT"
       - name: Compile, test and verify isolated fat JAR
-        run: ./gradlew clean check --no-daemon --stacktrace
-      - name: Create signed-registry candidate entry
+        run: >-
+          ./gradlew clean check
+          -PmahjongRuleSdkRepo="$GITHUB_WORKSPACE/.rule-sdk-source/build/rule-sdk-repository"
+          --no-daemon --stacktrace
+      - name: Create registry candidate entry
         id: artifact
         shell: bash
         env:
