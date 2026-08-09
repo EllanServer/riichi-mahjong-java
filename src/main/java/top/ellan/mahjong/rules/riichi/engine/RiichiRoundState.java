@@ -2,6 +2,7 @@ package top.ellan.mahjong.rules.riichi.engine;
 
 import top.ellan.mahjong.rules.riichi.evaluation.HandEvaluator;
 import top.ellan.mahjong.rules.riichi.model.PlayerId;
+import top.ellan.mahjong.rules.riichi.model.TileId;
 import top.ellan.mahjong.rules.riichi.model.TileInstance;
 import top.ellan.mahjong.rules.riichi.scoring.ScoreCalculator;
 
@@ -64,6 +65,18 @@ public final class RiichiRoundState {
 
     public List<TileInstance> concealedHand(PlayerId player) {
         return image.concealedHand(player);
+    }
+
+    public boolean discardWasCalled(PlayerId player, TileId tile) {
+        return image.discardWasCalled(player, tile);
+    }
+
+    public Optional<TileId> riichiDeclarationDiscard(PlayerId player) {
+        return image.riichiDeclarationDiscard(player);
+    }
+
+    public Optional<TileInstance> pendingDiscard() {
+        return image.pendingDiscard();
     }
 
     public Optional<ReactionOptions> availableReactions(PlayerId player) {

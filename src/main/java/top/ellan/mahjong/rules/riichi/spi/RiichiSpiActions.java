@@ -10,7 +10,6 @@ import top.ellan.mahjong.rules.riichi.model.TileKind;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 import java.util.Objects;
 
 /** Compact SPI mapping whose player-originated payloads contain only opaque projection IDs. */
@@ -18,16 +17,17 @@ public final class RiichiSpiActions {
     private RiichiSpiActions() {}
 
     public static top.ellan.mahjong.spi.LegalAction encode(
-            RiichiMatchState state, PlayerId actor, RoundCommand command) {
-        Objects.requireNonNull(state, "state");
+            RiichiProjectionIds ids,
+            PlayerId actor,
+            RoundCommand command) {
+        Objects.requireNonNull(ids, "ids");
         Objects.requireNonNull(actor, "actor");
         Objects.requireNonNull(command, "command");
-        RiichiProjectionIds ids = RiichiProjectionIds.forHand(state.currentHandSeed());
         if (command instanceof RoundCommand.Draw) {
             return new top.ellan.mahjong.spi.LegalAction(
                     "draw",
                     new top.ellan.mahjong.spi.RuleAction("draw", new byte[0]),
-                    Map.of("label", "draw", "type", "draw"));
+                    top.ellan.mahjong.spi.ActionPresentation.actionRow("action.draw"));
         }
         if (command instanceof RoundCommand.Discard discard) {
             long projection = ids.project(discard.tile());
@@ -38,8 +38,13 @@ public final class RiichiSpiActions {
             return new top.ellan.mahjong.spi.LegalAction(
                     key,
                     new top.ellan.mahjong.spi.RuleAction("discard", payload),
-                    Map.of("label", discard.declareRiichi() ? "discard_riichi" : "discard",
-                            "type", "discard"));
+                    discard.declareRiichi()
+                            ? top.ellan.mahjong.spi.ActionPresentation
+                                    .secondaryRow("action.discard_riichi")
+                                    .withEmphasis()
+                            : top.ellan.mahjong.spi.ActionPresentation.handTile(
+                                    "action.discard",
+                                    new top.ellan.mahjong.spi.TileInstanceId(projection)));
         }
         if (command instanceof RoundCommand.Respond respond) {
             Reaction reaction = respond.reaction();
@@ -58,43 +63,49 @@ public final class RiichiSpiActions {
                 case CHII -> "chii";
                 case SKIP -> "skip";
             };
-            String label = switch (reaction.type()) {
-                case RON -> "ron";
-                case PON -> "pon";
-                case MINKAN -> "minkan";
-                case CHII -> "chii";
-                case SKIP -> "skip";
-            };
+            top.ellan.mahjong.spi.ActionPresentation presentation =
+                    top.ellan.mahjong.spi.ActionPresentation.actionRow("action." + key);
+            if (reaction.type() == ReactionType.RON) {
+                presentation = presentation.withEmphasis();
+            }
             return new top.ellan.mahjong.spi.LegalAction(
                     key,
                     new top.ellan.mahjong.spi.RuleAction("respond", payload),
-                    Map.of("label", label, "type", "respond"));
+                    presentation);
         }
         if (command instanceof RoundCommand.DeclareSelfKan kan) {
             byte[] payload = new byte[] {(byte) kan.kind().ordinal()};
             return new top.ellan.mahjong.spi.LegalAction(
                     "declare_self_kan:" + kan.kind().notation(),
                     new top.ellan.mahjong.spi.RuleAction("declare_self_kan", payload),
-                    Map.of("label", "declare_self_kan", "type", "kan"));
+                    top.ellan.mahjong.spi.ActionPresentation.actionRow(
+                            "action.declare_self_kan"));
         }
         if (command instanceof RoundCommand.DeclareNineTerminals) {
             return new top.ellan.mahjong.spi.LegalAction(
                     "declare_nine_terminals",
                     new top.ellan.mahjong.spi.RuleAction("declare_nine_terminals", new byte[0]),
-                    Map.of("label", "declare_nine_terminals", "type", "nine_terminals"));
+                    top.ellan.mahjong.spi.ActionPresentation.secondaryRow(
+                            "action.declare_nine_terminals"));
         }
         if (command instanceof RoundCommand.DeclareTsumo) {
             return new top.ellan.mahjong.spi.LegalAction(
                     "declare_tsumo",
                     new top.ellan.mahjong.spi.RuleAction("declare_tsumo", new byte[0]),
-                    Map.of("label", "declare_tsumo", "type", "tsumo"));
+                    top.ellan.mahjong.spi.ActionPresentation
+                            .actionRow("action.declare_tsumo")
+                            .withEmphasis());
         }
         throw new IllegalArgumentException("unsupported Riichi round command");
     }
 
     public static RoundCommand decode(
-            RiichiMatchState state, PlayerId actor, top.ellan.mahjong.spi.RuleAction action) {
+            RiichiMatchState state,
+            RiichiProjectionIds ids,
+            PlayerId actor,
+            top.ellan.mahjong.spi.RuleAction action) {
         Objects.requireNonNull(state, "state");
+        Objects.requireNonNull(ids, "ids");
         Objects.requireNonNull(actor, "actor");
         Objects.requireNonNull(action, "action");
         byte[] payload = action.payload();
@@ -103,8 +114,8 @@ public final class RiichiSpiActions {
                 requireEmpty(payload);
                 yield new RoundCommand.Draw(actor);
             }
-            case "discard" -> decodeDiscard(state, actor, payload);
-            case "respond" -> decodeRespond(state, actor, payload);
+            case "discard" -> decodeDiscard(state, ids, actor, payload);
+            case "respond" -> decodeRespond(state, ids, actor, payload);
             case "declare_self_kan" -> decodeSelfKan(actor, payload);
             case "declare_nine_terminals" -> {
                 requireEmpty(payload);
@@ -119,11 +130,13 @@ public final class RiichiSpiActions {
     }
 
     private static RoundCommand decodeDiscard(
-            RiichiMatchState state, PlayerId actor, byte[] payload) {
+            RiichiMatchState state,
+            RiichiProjectionIds ids,
+            PlayerId actor,
+            byte[] payload) {
         if (payload.length != 2) {
             throw new IllegalArgumentException("discard payload must be [projection, riichi]");
         }
-        RiichiProjectionIds ids = RiichiProjectionIds.forHand(state.currentHandSeed());
         TileId tile = ids.resolve(Byte.toUnsignedInt(payload[0]));
         boolean riichi = payload[1] != 0;
         requireInHand(state, actor, tile);
@@ -131,7 +144,10 @@ public final class RiichiSpiActions {
     }
 
     private static RoundCommand decodeRespond(
-            RiichiMatchState state, PlayerId actor, byte[] payload) {
+            RiichiMatchState state,
+            RiichiProjectionIds ids,
+            PlayerId actor,
+            byte[] payload) {
         if (payload.length < 1) {
             throw new IllegalArgumentException("respond payload requires a reaction type");
         }
@@ -149,7 +165,6 @@ public final class RiichiSpiActions {
         if (payload.length != 1 + expected) {
             throw new IllegalArgumentException("invalid response tile count");
         }
-        RiichiProjectionIds ids = RiichiProjectionIds.forHand(state.currentHandSeed());
         ArrayList<TileId> tiles = new ArrayList<>(expected);
         for (int index = 0; index < expected; index++) {
             TileId tile = ids.resolve(Byte.toUnsignedInt(payload[1 + index]));

@@ -233,6 +233,24 @@ public final class RiichiRound {
         return List.copyOf(player(player).hand);
     }
 
+    /** Whether a river tile has left the river for an open meld. */
+    public boolean discardWasCalled(PlayerId player, TileId tile) {
+        Objects.requireNonNull(tile, "tile");
+        return player(player).calledDiscards.contains(tile);
+    }
+
+    /** The declaration discard that must be rendered sideways, when this player declared riichi. */
+    public Optional<TileId> riichiDeclarationDiscard(PlayerId player) {
+        return Optional.ofNullable(player(player).riichiDeclarationDiscard);
+    }
+
+    /** A currently reactable discard; pending self-kan robbery is deliberately excluded. */
+    public Optional<TileInstance> pendingDiscard() {
+        return pendingReaction == null || pendingReaction.pendingKan.isPresent()
+                ? Optional.empty()
+                : Optional.of(pendingReaction.tile);
+    }
+
     public Optional<ReactionOptions> availableReactions(PlayerId player) {
         return pendingReaction == null
                 ? Optional.empty()
@@ -472,6 +490,7 @@ public final class RiichiRound {
             discarder.doubleRiichi = doubleRiichi;
             discarder.riichi = !doubleRiichi;
             discarder.ippatsu = true;
+            discarder.riichiDeclarationDiscard = discarded.id();
             riichiPlayers.add(playerId);
             events.add(RoundEvent.of(
                     RoundEvent.Type.RIICHI_DECLARED, playerId, discarded,
@@ -1332,6 +1351,7 @@ public final class RiichiRound {
         private boolean riichi;
         private boolean doubleRiichi;
         private boolean ippatsu;
+        private TileId riichiDeclarationDiscard;
         private TileId lastDrawn;
         private boolean lastDrawWasRinshan;
         private Set<TileKind> kuikaeForbidden = Set.of();
@@ -1355,6 +1375,7 @@ public final class RiichiRound {
             riichi = source.riichi;
             doubleRiichi = source.doubleRiichi;
             ippatsu = source.ippatsu;
+            riichiDeclarationDiscard = source.riichiDeclarationDiscard;
             lastDrawn = source.lastDrawn;
             lastDrawWasRinshan = source.lastDrawWasRinshan;
             kuikaeForbidden = source.kuikaeForbidden;

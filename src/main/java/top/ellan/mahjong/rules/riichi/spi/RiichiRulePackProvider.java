@@ -12,7 +12,6 @@ import top.ellan.mahjong.rules.riichi.model.PlayerId;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
 
 /** Official Riichi rule pack exposing the full match through the rule SDK. */
@@ -101,7 +100,8 @@ public final class RiichiRulePackProvider implements top.ellan.mahjong.spi.RuleP
         }
         RoundCommand command;
         try {
-            command = RiichiSpiActions.decode(current.match(), domainActor, action);
+            command = RiichiSpiActions.decode(
+                    current.match(), current.projectionIds(), domainActor, action);
         } catch (IllegalArgumentException invalid) {
             return top.ellan.mahjong.spi.RuleTransition.rejected(current, "invalid_action_payload");
         }
@@ -130,13 +130,14 @@ public final class RiichiRulePackProvider implements top.ellan.mahjong.spi.RuleP
                     ? List.of(new top.ellan.mahjong.spi.LegalAction(
                             "start_next_hand",
                             new top.ellan.mahjong.spi.RuleAction("start_next_hand", new byte[0]),
-                            Map.of("label", "start_next_hand", "type", "start_next_hand")))
+                            top.ellan.mahjong.spi.ActionPresentation.actionRow(
+                                    "action.start_next_hand")))
                     : List.of();
         }
         List<RoundCommand> commands = current.match().roundState().legalCommands(player);
         ArrayList<top.ellan.mahjong.spi.LegalAction> result = new ArrayList<>(commands.size());
         for (RoundCommand command : commands) {
-            result.add(RiichiSpiActions.encode(current.match(), player, command));
+            result.add(RiichiSpiActions.encode(current.projectionIds(), player, command));
         }
         return List.copyOf(result);
     }
@@ -144,7 +145,7 @@ public final class RiichiRulePackProvider implements top.ellan.mahjong.spi.RuleP
     @Override
     public top.ellan.mahjong.spi.PublicRuleView publicView(
             top.ellan.mahjong.spi.RuleState state, long revision) {
-        return projector.publicView(requireState(state).match(), revision);
+        return projector.publicView(requireState(state), revision);
     }
 
     @Override
@@ -152,7 +153,7 @@ public final class RiichiRulePackProvider implements top.ellan.mahjong.spi.RuleP
             top.ellan.mahjong.spi.RuleState state,
             top.ellan.mahjong.spi.PlayerId viewer,
             long revision) {
-        return projector.privateView(requireState(state).match(), revision, viewer);
+        return projector.privateView(requireState(state), revision, viewer);
     }
 
     @Override

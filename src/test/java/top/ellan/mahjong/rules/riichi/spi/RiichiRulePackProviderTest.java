@@ -107,6 +107,9 @@ class RiichiRulePackProviderTest {
         assertTrue(publicView.tiles().size() >= 120);
         assertEquals(publicView.tiles().size(), new HashSet<>(publicView.tiles().stream()
                 .map(tile -> tile.instanceId().value()).toList()).size());
+        assertEquals(List.of(17, 17, 17, 17),
+                publicView.tablePresentation().wall().stackCountsBySide());
+        assertEquals(136, publicView.tablePresentation().wall().tileCapacity());
         assertTrue(publicView.tiles().stream()
                 .filter(tile -> tile.zone() == RuleViewZone.WALL
                         || tile.zone() == RuleViewZone.HAND)
@@ -125,6 +128,7 @@ class RiichiRulePackProviderTest {
         top.ellan.mahjong.spi.PlayerId east = players.getFirst().playerId();
         PrivateRuleView privateView = provider.privateView(state, east, 7);
         assertEquals(east, privateView.viewer());
+        assertEquals(new SeatId(0), privateView.seat());
         assertEquals(14, privateView.tiles().size());
         assertTrue(privateView.tiles().stream().allMatch(tile -> tile.faceUp()
                 && tile.zone() == RuleViewZone.HAND
@@ -149,6 +153,15 @@ class RiichiRulePackProviderTest {
             byte[] payload = discard.action().payload();
             assertEquals(2, payload.length);
             assertTrue(discard.key().startsWith("discard:"));
+            if (payload[1] == 0) {
+                assertEquals(top.ellan.mahjong.spi.ActionPlacement.HAND_TILE,
+                        discard.actionPresentation().placement());
+                assertEquals(Byte.toUnsignedInt(payload[0]),
+                        discard.actionPresentation().targetTile().orElseThrow().value());
+            } else {
+                assertEquals(top.ellan.mahjong.spi.ActionPlacement.SECONDARY_ROW,
+                        discard.actionPresentation().placement());
+            }
         }
 
         RuleTransition forged = provider.transition(
