@@ -30,7 +30,7 @@ jobs:
         uses: actions/checkout@v7
         with:
           repository: EllanServer/MahjongEngine
-          ref: 242b48024a73364cfb614287c4c6d9ed224a862b
+          ref: b207c715c7cff651ad960bbc109fedf75e8647b4
           path: mahjong-engine
           persist-credentials: false
       - name: Set up JDK 21
