@@ -42,6 +42,7 @@ ordinary no-yaku result.
 - exhaustive-draw tenpai/noten payments and river/call-aware nagashi mangan;
 - automatic Daisangen/Daisuushii pao registration and integrated ron/tsumo payment splitting;
 - immutable East-South match progression with renchan, honba, riichi carry, busts, West sudden death and rankings.
+- SPI/TCK 1.2 revision-bound automatic draws, reaction-window expiry and next-round advancement.
 
 The migrated suite includes 42 named real-world yaku/yakuman examples plus
 state, settlement, fail-closed and model-invariant regressions. Native shanten
@@ -53,7 +54,7 @@ backend, covering closed 13/14-tile hands and 1-4 legal melds.
 The command core rejects rather than guesses when a scenario asks it to:
 
 - score renhou or serialize/restore an already-open reaction window or ended round;
-- derive platform timeouts, bot decisions, persistence, or hidden-information views;
+- derive bot decisions, persistence, or hidden-information views;
 - use flowers, jokers, unknown tiles, three-player walls, or a fifth physical copy.
 
 `Scenario` currently serializes only a draw/discard boundary and does not carry
@@ -65,6 +66,8 @@ arbitrary mid-round persistence format.
 Mahjong Soul four-player ranked rules are the baseline. `EARLY_KAN_DORA` is a
 compatibility profile whose only intended difference is successful open-kan
 dora timing. New behavior requires a versioned rule fixture and regression test.
+The rule pack declares deterministic delays only; MahjongPaper owns timer threads,
+revision checks, persistence and fault isolation.
 
 ## Rule references
 

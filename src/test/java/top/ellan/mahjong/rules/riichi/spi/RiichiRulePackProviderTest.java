@@ -7,8 +7,13 @@ import top.ellan.mahjong.rules.riichi.engine.RiichiMatchPosition;
 import top.ellan.mahjong.rules.riichi.engine.RiichiMatchRules;
 import top.ellan.mahjong.rules.riichi.engine.RiichiMatchState;
 import top.ellan.mahjong.rules.riichi.engine.RiichiRoundState;
+import top.ellan.mahjong.rules.riichi.engine.RoundPhase;
 import top.ellan.mahjong.rules.riichi.engine.Scenario;
 import top.ellan.mahjong.rules.riichi.model.PlayerId;
+import top.ellan.mahjong.rules.riichi.model.Tile;
+import top.ellan.mahjong.rules.riichi.model.TileId;
+import top.ellan.mahjong.rules.riichi.model.TileInstance;
+import top.ellan.mahjong.rules.riichi.model.TileKind;
 import top.ellan.mahjong.rules.riichi.model.Wind;
 import top.ellan.mahjong.spi.LegalAction;
 import top.ellan.mahjong.spi.MatchPlayer;
@@ -22,6 +27,7 @@ import top.ellan.mahjong.spi.RuleState;
 import top.ellan.mahjong.spi.RuleStateSnapshot;
 import top.ellan.mahjong.spi.RuleTransition;
 import top.ellan.mahjong.spi.RuleViewZone;
+import top.ellan.mahjong.spi.ScheduledRuleAction;
 import top.ellan.mahjong.spi.SeatId;
 import top.ellan.mahjong.spi.TransitionDisposition;
 import top.ellan.mahjong.tck.RulePackTck;
@@ -30,6 +36,7 @@ import top.ellan.mahjong.tck.RulePackTckReport;
 
 import java.io.InputStream;
 import java.util.ArrayList;
+import java.util.EnumMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -302,6 +309,56 @@ class RiichiRulePackProviderTest {
         assertTrue(provider.legalActions(next, south).stream()
                 .filter(action -> action.action().type().equals("discard"))
                 .count() >= 13);
+
+        ScheduledRuleAction scheduled = provider.scheduledAction(boundary).orElseThrow();
+        assertEquals(south, scheduled.actor());
+        assertEquals("start_next_hand", scheduled.action().type());
+        assertEquals(RiichiScheduledActionPolicy.NEXT_ROUND_DELAY, scheduled.delay());
+    }
+
+    @Test
+    void scheduledPolicySkipsAReactionWindowThenDrawsForTheNextPlayer() {
+        RiichiProviderState before = reactionProviderState();
+        top.ellan.mahjong.spi.PlayerId east = players.getFirst().playerId();
+        long targetProjection = before.projectionIds().project(new TileId(0));
+        LegalAction discard = provider.legalActions(before, east).stream()
+                .filter(action -> action.action().type().equals("discard"))
+                .filter(action -> Byte.toUnsignedInt(action.action().payload()[0])
+                        == targetProjection)
+                .filter(action -> action.action().payload()[1] == 0)
+                .findFirst()
+                .orElseThrow();
+        RuleTransition discarded = provider.transition(before, east, discard.action());
+        assertTrue(discarded.accepted());
+        RuleState reacting = discarded.nextState();
+
+        ScheduledRuleAction timeout = provider.scheduledAction(reacting).orElseThrow();
+        assertEquals(east, timeout.actor());
+        assertEquals(RiichiScheduledActionPolicy.SKIP_REACTIONS_TYPE, timeout.action().type());
+        assertEquals(RiichiScheduledActionPolicy.REACTION_DELAY, timeout.delay());
+
+        top.ellan.mahjong.spi.PlayerId wrongActor = players.get(1).playerId();
+        RuleTransition forged = provider.transition(reacting, wrongActor, timeout.action());
+        assertEquals(TransitionDisposition.REJECTED, forged.disposition());
+        assertSame(reacting, forged.nextState());
+
+        RuleTransition skipped = provider.transition(reacting, east, timeout.action());
+        assertTrue(skipped.accepted());
+        RiichiProviderState awaitingDraw = (RiichiProviderState) skipped.nextState();
+        assertEquals(
+                RoundPhase.AWAITING_DRAW,
+                awaitingDraw.match().roundState().publicSnapshot().phase());
+
+        ScheduledRuleAction draw = provider.scheduledAction(awaitingDraw).orElseThrow();
+        assertEquals(players.get(1).playerId(), draw.actor());
+        assertEquals("draw", draw.action().type());
+        assertEquals(RiichiScheduledActionPolicy.DRAW_DELAY, draw.delay());
+        RuleTransition drawn = provider.transition(awaitingDraw, draw.actor(), draw.action());
+        assertTrue(drawn.accepted());
+        assertEquals(
+                RoundPhase.AWAITING_DISCARD,
+                ((RiichiProviderState) drawn.nextState())
+                        .match().roundState().publicSnapshot().phase());
     }
 
     @Test
@@ -362,6 +419,89 @@ class RiichiRulePackProviderTest {
             spiPlayers.add(player.playerId());
         }
         return new RiichiProviderState(boundary, spiPlayers);
+    }
+
+    private RiichiProviderState reactionProviderState() {
+        RiichiMatchRules rules = RiichiMatchRules.mahjongSoulHanchan();
+        ArrayList<PlayerId> seats = new ArrayList<>(4);
+        ArrayList<top.ellan.mahjong.spi.PlayerId> spiPlayers = new ArrayList<>(4);
+        for (top.ellan.mahjong.spi.MatchPlayer player : players) {
+            seats.add(RiichiProviderState.toDomain(player.playerId()));
+            spiPlayers.add(player.playerId());
+        }
+        long[] id = {0};
+        EnumMap<TileKind, Integer> copies = new EnumMap<>(TileKind.class);
+        ArrayList<TileInstance> east = new ArrayList<>(14);
+        ArrayList<TileInstance> south = new ArrayList<>(13);
+        ArrayList<TileInstance> west = new ArrayList<>(13);
+        ArrayList<TileInstance> north = new ArrayList<>(13);
+        east.add(tile(id, copies, TileKind.P3));
+        south.add(tile(id, copies, TileKind.P3));
+        south.add(tile(id, copies, TileKind.P3));
+        fillHand(east, 14, id, copies);
+        fillHand(south, 13, id, copies);
+        fillHand(west, 13, id, copies);
+        fillHand(north, 13, id, copies);
+        ArrayList<TileInstance> liveWall = new ArrayList<>(1);
+        ArrayList<TileInstance> rinshan = new ArrayList<>(1);
+        fillHand(liveWall, 1, id, copies);
+        fillHand(rinshan, 1, id, copies);
+        Scenario scenario = Scenario.builder(seats)
+                .rules(rules.roundRules())
+                .phase(RoundPhase.AWAITING_DISCARD)
+                .hand(seats.get(0), east)
+                .hand(seats.get(1), south)
+                .hand(seats.get(2), west)
+                .hand(seats.get(3), north)
+                .liveWall(liveWall)
+                .rinshan(rinshan)
+                .build();
+        RiichiRoundState round = RiichiRoundState.start(
+                scenario,
+                RiichiServices.handEvaluator(),
+                RiichiServices.scoreCalculator());
+        LinkedHashMap<PlayerId, Integer> scores = new LinkedHashMap<>();
+        seats.forEach(player -> scores.put(player, rules.roundRules().startingPoints()));
+        RiichiMatchState match = RiichiMatchState.restored(
+                0,
+                rules,
+                seats,
+                43L,
+                0,
+                RiichiMatchPosition.eastOne(),
+                scores,
+                RiichiMatchPhase.ACTIVE_ROUND,
+                round,
+                Optional.empty(),
+                RiichiServices.handEvaluator(),
+                RiichiServices.scoreCalculator());
+        return new RiichiProviderState(match, spiPlayers);
+    }
+
+    private static void fillHand(
+            List<TileInstance> target,
+            int size,
+            long[] id,
+            EnumMap<TileKind, Integer> copies) {
+        while (target.size() < size) {
+            boolean added = false;
+            for (TileKind kind : TileKind.values()) {
+                if (copies.getOrDefault(kind, 0) < 4) {
+                    target.add(tile(id, copies, kind));
+                    added = true;
+                    break;
+                }
+            }
+            if (!added) {
+                throw new AssertionError("test tile supply exhausted");
+            }
+        }
+    }
+
+    private static TileInstance tile(
+            long[] id, EnumMap<TileKind, Integer> copies, TileKind kind) {
+        copies.merge(kind, 1, Integer::sum);
+        return new TileInstance(new TileId(id[0]++), Tile.of(kind));
     }
 
     private MatchSetup setup() {

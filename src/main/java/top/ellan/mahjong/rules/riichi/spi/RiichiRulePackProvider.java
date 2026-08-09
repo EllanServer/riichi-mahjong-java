@@ -1,6 +1,5 @@
 package top.ellan.mahjong.rules.riichi.spi;
 
-import top.ellan.mahjong.rules.riichi.engine.RiichiMatchEngine;
 import top.ellan.mahjong.rules.riichi.engine.RiichiMatchEvent;
 import top.ellan.mahjong.rules.riichi.engine.RiichiMatchPhase;
 import top.ellan.mahjong.rules.riichi.engine.RiichiMatchRules;
@@ -23,7 +22,9 @@ public final class RiichiRulePackProvider implements top.ellan.mahjong.spi.RuleP
     public static final String PACK_VERSION = "0.1.0-SNAPSHOT";
 
     private final top.ellan.mahjong.spi.RulePackDescriptor descriptor = descriptorValue();
-    private final RiichiMatchEngine engine = new RiichiMatchEngine();
+    private final RiichiTransitionCoordinator transitions = new RiichiTransitionCoordinator();
+    private final RiichiScheduledActionPolicy scheduledActions =
+            new RiichiScheduledActionPolicy();
     private final RiichiProviderSnapshotCodec snapshots = new RiichiProviderSnapshotCodec();
     private final RiichiViewProjector projector = new RiichiViewProjector();
 
@@ -84,15 +85,24 @@ public final class RiichiRulePackProvider implements top.ellan.mahjong.spi.RuleP
             return top.ellan.mahjong.spi.RuleTransition.rejected(current, "actor_not_seated");
         }
         PlayerId domainActor = current.match().seats().get(initialSeat);
+        if (scheduledActions.isActorOwned(action)) {
+            var commands = scheduledActions.decodeActorOwned(current, actor, action);
+            if (commands.isEmpty()) {
+                return top.ellan.mahjong.spi.RuleTransition.rejected(
+                        current, "actor_action_not_authorized");
+            }
+            return accepted(current, transitions.applyActorOwned(
+                    current.match(), commands.orElseThrow()));
+        }
         if (current.match().phase() == RiichiMatchPhase.BETWEEN_ROUNDS) {
             if (!action.type().equals("start_next_hand")
                     || action.payload().length != 0) {
                 return top.ellan.mahjong.spi.RuleTransition.rejected(current, "invalid_action_payload");
             }
-            if (!mayStartNextRound(current.match(), domainActor)) {
+            if (!scheduledActions.mayStartNextRound(current, actor)) {
                 return top.ellan.mahjong.spi.RuleTransition.rejected(current, "next_dealer_required");
             }
-            RiichiMatchTransition domain = engine.startNextRound(current.match());
+            RiichiMatchTransition domain = transitions.startNextRound(current.match());
             return accepted(current, domain);
         }
         if (current.match().phase() == RiichiMatchPhase.ENDED) {
@@ -105,7 +115,7 @@ public final class RiichiRulePackProvider implements top.ellan.mahjong.spi.RuleP
         } catch (IllegalArgumentException invalid) {
             return top.ellan.mahjong.spi.RuleTransition.rejected(current, "invalid_action_payload");
         }
-        RiichiMatchTransition domain = engine.applyRoundCommand(current.match(), command);
+        RiichiMatchTransition domain = transitions.apply(current.match(), command);
         if (!domain.accepted()) {
             return top.ellan.mahjong.spi.RuleTransition.rejected(current, rejectionReason(domain));
         }
@@ -126,7 +136,7 @@ public final class RiichiRulePackProvider implements top.ellan.mahjong.spi.RuleP
         }
         PlayerId player = current.match().seats().get(initialSeat);
         if (current.match().phase() == RiichiMatchPhase.BETWEEN_ROUNDS) {
-            return mayStartNextRound(current.match(), player)
+            return scheduledActions.mayStartNextRound(current, actor)
                     ? List.of(new top.ellan.mahjong.spi.LegalAction(
                             "start_next_hand",
                             new top.ellan.mahjong.spi.RuleAction("start_next_hand", new byte[0]),
@@ -140,6 +150,12 @@ public final class RiichiRulePackProvider implements top.ellan.mahjong.spi.RuleP
             result.add(RiichiSpiActions.encode(current.projectionIds(), player, command));
         }
         return List.copyOf(result);
+    }
+
+    @Override
+    public java.util.Optional<top.ellan.mahjong.spi.ScheduledRuleAction> scheduledAction(
+            top.ellan.mahjong.spi.RuleState state) {
+        return scheduledActions.next(requireState(state));
     }
 
     @Override
@@ -196,14 +212,6 @@ public final class RiichiRulePackProvider implements top.ellan.mahjong.spi.RuleP
         value = (value ^ value >>> 30) * 0xBF58476D1CE4E5B9L;
         value = (value ^ value >>> 27) * 0x94D049BB133111EBL;
         return value ^ value >>> 31;
-    }
-
-    private static boolean mayStartNextRound(RiichiMatchState match, PlayerId actor) {
-        if (match.phase() != RiichiMatchPhase.BETWEEN_ROUNDS) {
-            return false;
-        }
-        PlayerId nextDealer = match.seats().get(match.position().dealerIndex());
-        return nextDealer.equals(actor);
     }
 
     private static top.ellan.mahjong.spi.RuleTransition accepted(
