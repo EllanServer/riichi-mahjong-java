@@ -330,6 +330,46 @@ class RiichiRulePackProviderTest {
     }
 
     @Test
+    void snapshotRestorePreservesAnOpenReactionWindowAndFutureTransitions() {
+        RiichiProviderState before = reactionProviderState();
+        top.ellan.mahjong.spi.PlayerId east = players.getFirst().playerId();
+        long targetProjection = before.projectionIds().project(new TileId(0));
+        LegalAction discard = provider.legalActions(before, east).stream()
+                .filter(action -> action.action().type().equals("discard"))
+                .filter(action -> Byte.toUnsignedInt(action.action().payload()[0]) == targetProjection)
+                .filter(action -> action.action().payload()[1] == 0)
+                .findFirst()
+                .orElseThrow();
+        RuleTransition discarded = provider.transition(before, east, discard.action());
+        assertTrue(discarded.accepted());
+        RuleState reacting = discarded.nextState();
+
+        RuleState restored = provider.restore(provider.snapshot(reacting, 7));
+        assertEquals(provider.stateHash(reacting), provider.stateHash(restored));
+        assertEquals(provider.publicView(reacting, 0), provider.publicView(restored, 0));
+        for (MatchPlayer player : players) {
+            assertEquals(
+                    provider.privateView(reacting, player.playerId(), 0),
+                    provider.privateView(restored, player.playerId(), 0));
+            assertEquals(
+                    provider.legalActions(reacting, player.playerId()),
+                    provider.legalActions(restored, player.playerId()));
+        }
+        ScheduledRuleAction originalTimeout = provider.scheduledAction(reacting).orElseThrow();
+        ScheduledRuleAction restoredTimeout = provider.scheduledAction(restored).orElseThrow();
+        assertEquals(originalTimeout, restoredTimeout);
+        RuleTransition originalNext = provider.transition(
+                reacting, originalTimeout.actor(), originalTimeout.action());
+        RuleTransition restoredNext = provider.transition(
+                restored, restoredTimeout.actor(), restoredTimeout.action());
+        assertTrue(originalNext.accepted());
+        assertTrue(restoredNext.accepted());
+        assertEquals(
+                provider.stateHash(originalNext.nextState()),
+                provider.stateHash(restoredNext.nextState()));
+    }
+
+    @Test
     void onlyTheIncomingDealerCanAdvanceACompletedHand() {
         RiichiProviderState boundary = boundaryProviderState();
         top.ellan.mahjong.spi.PlayerId east = players.getFirst().playerId();

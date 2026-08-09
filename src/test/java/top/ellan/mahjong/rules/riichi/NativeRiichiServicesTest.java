@@ -16,13 +16,13 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-class MahjongUtilsAdapterTest {
+class NativeRiichiServicesTest {
     private static final List<Tile> PINFU_TANYAO = TestFixtures.tiles(
             "2m", "3m", "4m", "3m", "4m", "5m", "4p", "5p", "6p",
             "6s", "7s", "8s", "6p");
 
     @Test
-    void shantenAndWaitsAreExposedWithoutKotlinTypes() {
+    void shantenAndWaitsUseTheNativeJavaEvaluator() {
         HandAnalysis analysis = RiichiServices.handEvaluator().analyze(PINFU_TANYAO, List.of());
         assertEquals(0, analysis.shanten());
         assertTrue(analysis.waits().contains(TileKind.P6));
@@ -39,6 +39,8 @@ class MahjongUtilsAdapterTest {
         assertTrue(result.yaku().stream().anyMatch(yaku -> yaku.id().equals("TANYAO")));
         assertEquals(2, result.han());
         assertEquals(2, result.yakuHan());
+        assertEquals(30, result.fu());
+        assertEquals(2_000, result.ronPayment().orElseThrow().discarderPays());
     }
 
     @Test

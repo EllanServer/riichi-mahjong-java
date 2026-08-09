@@ -24,10 +24,6 @@ java {
 }
 
 dependencies {
-    implementation('io.github.ssttkkl:mahjong-utils-jvm') {
-        version { strictly '0.7.7' }
-    }
-
     compileOnly 'top.ellan.mahjong:mahjong-rule-spi:1.5.0'
 
     testImplementation platform('org.junit:junit-bom:5.12.2')
@@ -76,38 +72,6 @@ tasks.named('shadowJar') {
     mergeServiceFiles()
 }
 
-def expectedMahjongUtilsSha256 = '0af586bf2d62fe60f91675e579a0e9e74d5deced1d23ecc63ebe3a1fb8219fa2'
-
-tasks.register('verifyMahjongUtils') {
-    group = 'verification'
-    description = 'Verifies the pinned mahjong-utils-jvm 0.7.7 binary.'
-    doLast {
-        def artifact = configurations.runtimeClasspath.resolvedConfiguration.resolvedArtifacts.find {
-            it.moduleVersion.id.group == 'io.github.ssttkkl' &&
-                it.name == 'mahjong-utils-jvm' &&
-                it.moduleVersion.id.version == '0.7.7'
-        }
-        if (artifact == null) {
-            throw new GradleException('Pinned mahjong-utils-jvm:0.7.7 was not resolved')
-        }
-        def digest = java.security.MessageDigest.getInstance('SHA-256')
-        artifact.file.withInputStream { input ->
-            byte[] buffer = new byte[8192]
-            for (int read = input.read(buffer); read >= 0; read = input.read(buffer)) {
-                if (read > 0) digest.update(buffer, 0, read)
-            }
-        }
-        def actual = digest.digest().encodeHex().toString()
-        if (actual != expectedMahjongUtilsSha256) {
-            throw new GradleException("mahjong-utils-jvm hash mismatch: expected ${expectedMahjongUtilsSha256}, got ${actual}")
-        }
-    }
-}
-
-tasks.named('check') {
-    dependsOn tasks.named('verifyMahjongUtils')
-}
-
 tasks.register('verifyRulePackJar') {
     group = 'verification'
     description = 'Checks the ServiceLoader entry and parent-loaded SPI boundary.'
@@ -130,8 +94,10 @@ tasks.register('verifyRulePackJar') {
             || !names.contains('assets/riichi/tile-visuals.properties')) {
             throw new GradleException('Rule pack jar is missing its static descriptor resources')
         }
-        if (!names.any { name -> name.startsWith('mahjongutils/') }) {
-            throw new GradleException('Riichi fat jar is missing its pinned mahjong-utils backend')
+        if (names.any { name -> name.startsWith('mahjongutils/')
+                || name.startsWith('kotlin/')
+                || name.startsWith('kotlinx/') }) {
+            throw new GradleException('Riichi rule pack must be a pure-Java artifact')
         }
     }
 }

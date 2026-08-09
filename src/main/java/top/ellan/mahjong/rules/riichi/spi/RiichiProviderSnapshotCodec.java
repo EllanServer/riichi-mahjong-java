@@ -52,6 +52,10 @@ public final class RiichiProviderSnapshotCodec {
     }
 
     public RiichiProviderState restore(top.ellan.mahjong.spi.RuleStateSnapshot snapshot) {
+        if (snapshot.schemaVersion() != SCHEMA_VERSION) {
+            throw new IllegalArgumentException(
+                    "unsupported Riichi state schema: " + snapshot.schemaVersion());
+        }
         byte[] payload = snapshot.payload();
         if (!sha256Hex(payload).equals(snapshot.sha256())) {
             throw new IllegalArgumentException("snapshot digest mismatch");
@@ -94,6 +98,9 @@ public final class RiichiProviderSnapshotCodec {
                     .map(RiichiProviderState::toDomain)
                     .toList();
             RiichiMatchState match = readMatch(in, seats);
+            if (in.read() != -1) {
+                throw new IllegalArgumentException("Riichi snapshot has trailing data");
+            }
             return new RiichiProviderState(match, players);
         } catch (EOFException truncated) {
             throw new IllegalArgumentException("truncated Riichi snapshot", truncated);
