@@ -25,11 +25,6 @@ public final class RiichiViewProjector {
     private static final int POINT_STICK_IDS_PER_SEAT = 512;
     private static final int DEAD_WALL_START = RiichiProjectionIds.PHYSICAL_TILE_COUNT - 14;
     private static final int RINSHAN_START = RiichiProjectionIds.PHYSICAL_TILE_COUNT - 4;
-    private static final top.ellan.mahjong.spi.RuleWallPresentation PHYSICAL_WALL =
-            new top.ellan.mahjong.spi.RuleWallPresentation(
-                    List.of(17, 17, 17, 17),
-                    0,
-                    top.ellan.mahjong.spi.RuleWallDirection.CLOCKWISE);
     private static final top.ellan.mahjong.spi.TileVisualId BACK =
             new top.ellan.mahjong.spi.TileVisualId("riichi:tile/back");
     private static final top.ellan.mahjong.spi.TileVisualId[] FACE_VISUALS =
@@ -173,14 +168,15 @@ public final class RiichiViewProjector {
                 attributes,
                 new top.ellan.mahjong.spi.RuleTablePresentation(
                         4,
-                        PHYSICAL_WALL,
+                        provider.openingLayout().wall(),
                         6,
                         Optional.of(new top.ellan.mahjong.spi.SeatId(
                                 match.position().dealerIndex())),
                         currentSeat < 0
                                 ? Optional.empty()
                                 : Optional.of(new top.ellan.mahjong.spi.SeatId(currentSeat)),
-                        lastDiscard));
+                        lastDiscard,
+                        Optional.of(provider.openingLayout().opening())));
     }
 
     public top.ellan.mahjong.spi.PrivateRuleView privateView(

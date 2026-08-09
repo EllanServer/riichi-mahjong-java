@@ -120,6 +120,18 @@ class RiichiRulePackProviderTest {
         assertEquals(List.of(17, 17, 17, 17),
                 publicView.tablePresentation().wall().stackCountsBySide());
         assertEquals(136, publicView.tablePresentation().wall().tileCapacity());
+        var opening = publicView.tablePresentation().opening().orElseThrow();
+        assertEquals(1, opening.rolls().size());
+        assertEquals(
+                (publicView.tablePresentation().dealerSeat().orElseThrow().value()
+                                + opening.rolls().getFirst().total()
+                                - 1)
+                        % 4,
+                opening.openDoorSeat().value());
+        assertEquals(opening.rolls().getFirst().total(), opening.breakStackOffset());
+        assertEquals(
+                (opening.openDoorSeat().value() * 17 + opening.breakStackOffset()) % 68,
+                publicView.tablePresentation().wall().drawStartStack());
         assertTrue(publicView.tiles().stream()
                 .filter(tile -> tile.zone() == RuleViewZone.WALL
                         || tile.zone() == RuleViewZone.HAND)
@@ -259,6 +271,9 @@ class RiichiRulePackProviderTest {
         RuleStateSnapshot snapshot = provider.snapshot(state, 23);
         RuleState restored = provider.restore(snapshot);
         assertEquals(provider.stateHash(state), provider.stateHash(restored));
+        assertEquals(
+                provider.publicView(state, 0).tablePresentation(),
+                provider.publicView(restored, 0).tablePresentation());
         for (MatchPlayer player : players) {
             assertEquals(
                     provider.privateView(state, player.playerId(), 0),

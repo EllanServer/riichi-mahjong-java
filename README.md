@@ -42,7 +42,8 @@ ordinary no-yaku result.
 - exhaustive-draw tenpai/noten payments and river/call-aware nagashi mangan;
 - automatic Daisangen/Daisuushii pao registration and integrated ron/tsumo payment splitting;
 - immutable East-South match progression with renchan, honba, riichi carry, busts, West sudden death and rankings.
-- SPI/TCK 1.2 revision-bound automatic draws, reaction-window expiry and next-round advancement.
+- SPI/TCK 1.4 revision-bound automatic draws, reaction-window expiry and next-round advancement;
+- deterministic one-roll physical-wall opening metadata, with rendering and animation owned by CraftEngine.
 
 The migrated suite includes 42 named real-world yaku/yakuman examples plus
 state, settlement, fail-closed and model-invariant regressions. Native shanten
@@ -68,6 +69,11 @@ compatibility profile whose only intended difference is successful open-kan
 dora timing. New behavior requires a versioned rule fixture and regression test.
 The rule pack declares deterministic delays only; MahjongPaper owns timer threads,
 revision checks, persistence and fault isolation.
+
+`RiichiOpeningLayout` derives one two-dice roll from the immutable hand seed, then
+publishes the total-selected open side and break on the common 17-stack wall. It
+does not own models, transforms, culling or animation; those remain CraftEngine
+configuration and a bounded platform projection.
 
 ## Rule references
 

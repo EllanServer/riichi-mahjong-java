@@ -15,6 +15,7 @@ public final class RiichiProviderState implements top.ellan.mahjong.spi.RuleStat
     private final RiichiProjectionIds projectionIds;
     private final short[] wallSlotsByProjection;
     private final short[] projectionsByWallSlot;
+    private final RiichiOpeningLayout openingLayout;
 
     RiichiProviderState(
             RiichiMatchState match,
@@ -25,6 +26,7 @@ public final class RiichiProviderState implements top.ellan.mahjong.spi.RuleStat
                 RiichiProjectionIds.forHand(
                         Objects.requireNonNull(match, "match").currentHandSeed()),
                 null,
+                null,
                 null);
     }
 
@@ -33,7 +35,8 @@ public final class RiichiProviderState implements top.ellan.mahjong.spi.RuleStat
             top.ellan.mahjong.spi.PlayerId[] playersByInitialSeat,
             RiichiProjectionIds projectionIds,
             short[] wallSlotsByProjection,
-            short[] projectionsByWallSlot) {
+            short[] projectionsByWallSlot,
+            RiichiOpeningLayout openingLayout) {
         this.match = Objects.requireNonNull(match, "match");
         this.playersByInitialSeat = playersByInitialSeat;
         this.projectionIds = Objects.requireNonNull(projectionIds, "projectionIds");
@@ -45,6 +48,9 @@ public final class RiichiProviderState implements top.ellan.mahjong.spi.RuleStat
             this.wallSlotsByProjection = wallSlotsByProjection;
             this.projectionsByWallSlot = projectionsByWallSlot;
         }
+        this.openingLayout = openingLayout == null
+                ? RiichiOpeningLayout.forMatch(match)
+                : openingLayout;
     }
 
     public RiichiMatchState match() {
@@ -90,6 +96,10 @@ public final class RiichiProviderState implements top.ellan.mahjong.spi.RuleStat
         return Short.toUnsignedInt(projectionsByWallSlot[wallSlot]);
     }
 
+    RiichiOpeningLayout openingLayout() {
+        return openingLayout;
+    }
+
     RiichiProviderState withMatch(RiichiMatchState nextMatch) {
         if (match.currentHandSeed() == nextMatch.currentHandSeed()) {
             return new RiichiProviderState(
@@ -97,12 +107,13 @@ public final class RiichiProviderState implements top.ellan.mahjong.spi.RuleStat
                     playersByInitialSeat,
                     projectionIds,
                     wallSlotsByProjection,
-                    projectionsByWallSlot);
+                    projectionsByWallSlot,
+                    openingLayout);
         }
         RiichiProjectionIds nextProjectionIds =
                 RiichiProjectionIds.forHand(nextMatch.currentHandSeed());
         return new RiichiProviderState(
-                nextMatch, playersByInitialSeat, nextProjectionIds, null, null);
+                nextMatch, playersByInitialSeat, nextProjectionIds, null, null, null);
     }
 
     static top.ellan.mahjong.rules.riichi.model.PlayerId toDomain(
