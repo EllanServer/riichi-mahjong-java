@@ -28,12 +28,12 @@ dependencies {
         version { strictly '0.7.7' }
     }
 
-    compileOnly 'top.ellan.mahjong:mahjong-rule-spi:1.4.0'
+    compileOnly 'top.ellan.mahjong:mahjong-rule-spi:1.5.0'
 
     testImplementation platform('org.junit:junit-bom:5.12.2')
     testImplementation 'org.junit.jupiter:junit-jupiter'
-    testImplementation 'top.ellan.mahjong:mahjong-rule-spi:1.4.0'
-    testImplementation 'top.ellan.mahjong:mahjong-rule-tck:1.4.0'
+    testImplementation 'top.ellan.mahjong:mahjong-rule-spi:1.5.0'
+    testImplementation 'top.ellan.mahjong:mahjong-rule-tck:1.5.0'
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 }
 
@@ -58,7 +58,7 @@ tasks.named('jar') {
         attributes(
             'Mahjong-Rule-Id': 'riichi',
             'Mahjong-Rule-Version': project.version,
-            'Mahjong-SPI-Version': '1.4.0',
+            'Mahjong-SPI-Version': '1.5.0',
             'Mahjong-State-Schema': '1'
         )
     }

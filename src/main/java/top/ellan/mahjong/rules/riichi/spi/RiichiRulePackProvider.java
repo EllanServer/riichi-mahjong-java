@@ -25,6 +25,7 @@ public final class RiichiRulePackProvider implements top.ellan.mahjong.spi.RuleP
     private final RiichiTransitionCoordinator transitions = new RiichiTransitionCoordinator();
     private final RiichiScheduledActionPolicy scheduledActions =
             new RiichiScheduledActionPolicy();
+    private final RiichiAutomationPolicy automation = new RiichiAutomationPolicy();
     private final RiichiProviderSnapshotCodec snapshots = new RiichiProviderSnapshotCodec();
     private final RiichiViewProjector projector = new RiichiViewProjector();
 
@@ -156,6 +157,13 @@ public final class RiichiRulePackProvider implements top.ellan.mahjong.spi.RuleP
     public java.util.Optional<top.ellan.mahjong.spi.ScheduledRuleAction> scheduledAction(
             top.ellan.mahjong.spi.RuleState state) {
         return scheduledActions.next(requireState(state));
+    }
+
+    @Override
+    public java.util.Optional<top.ellan.mahjong.spi.ScheduledRuleAction> automatedAction(
+            top.ellan.mahjong.spi.RuleState state,
+            List<top.ellan.mahjong.spi.AutomatedPlayerActions> candidates) {
+        return automation.next(requireState(state), List.copyOf(candidates));
     }
 
     @Override

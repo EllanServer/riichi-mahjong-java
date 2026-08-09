@@ -42,7 +42,8 @@ ordinary no-yaku result.
 - exhaustive-draw tenpai/noten payments and river/call-aware nagashi mangan;
 - automatic Daisangen/Daisuushii pao registration and integrated ron/tsumo payment splitting;
 - immutable East-South match progression with renchan, honba, riichi carry, busts, West sudden death and rankings.
-- SPI/TCK 1.4 revision-bound automatic draws, reaction-window expiry and next-round advancement;
+- SPI/TCK 1.5 revision-bound automatic draws, reaction-window expiry, next-round advancement,
+  and shanten-aware Riichi bot/trustee decisions from precomputed legal actions;
 - deterministic one-roll physical-wall opening metadata, with rendering and animation owned by CraftEngine.
 
 The migrated suite includes 42 named real-world yaku/yakuman examples plus
