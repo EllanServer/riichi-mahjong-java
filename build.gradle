@@ -72,6 +72,7 @@ tasks.named('jar') {
 tasks.named('shadowJar') {
     archiveBaseName = 'riichi-rule-pack'
     archiveClassifier = ''
+    duplicatesStrategy = DuplicatesStrategy.INCLUDE
     mergeServiceFiles()
 }
 
@@ -129,7 +130,7 @@ tasks.register('verifyRulePackJar') {
             || !names.contains('assets/riichi/tile-visuals.properties')) {
             throw new GradleException('Rule pack jar is missing its static descriptor resources')
         }
-        if (!names.any { name -> name.startsWith('io/github/ssttkkl/mahjongutils/') }) {
+        if (!names.any { name -> name.startsWith('mahjongutils/') }) {
             throw new GradleException('Riichi fat jar is missing its pinned mahjong-utils backend')
         }
     }
