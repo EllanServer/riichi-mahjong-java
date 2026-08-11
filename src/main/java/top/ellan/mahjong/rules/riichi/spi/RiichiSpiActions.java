@@ -6,10 +6,13 @@ import top.ellan.mahjong.rules.riichi.engine.Reaction;
 import top.ellan.mahjong.rules.riichi.engine.ReactionType;
 import top.ellan.mahjong.rules.riichi.model.PlayerId;
 import top.ellan.mahjong.rules.riichi.model.TileId;
+import top.ellan.mahjong.rules.riichi.model.TileInstance;
 import top.ellan.mahjong.rules.riichi.model.TileKind;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
+import java.util.Locale;
 import java.util.Objects;
 
 /** Compact SPI mapping whose player-originated payloads contain only opaque projection IDs. */
@@ -17,9 +20,11 @@ public final class RiichiSpiActions {
     private RiichiSpiActions() {}
 
     public static top.ellan.mahjong.spi.LegalAction encode(
+            RiichiMatchState state,
             RiichiProjectionIds ids,
             PlayerId actor,
             RoundCommand command) {
+        Objects.requireNonNull(state, "state");
         Objects.requireNonNull(ids, "ids");
         Objects.requireNonNull(actor, "actor");
         Objects.requireNonNull(command, "command");
@@ -40,7 +45,13 @@ public final class RiichiSpiActions {
                     new top.ellan.mahjong.spi.RuleAction("discard", payload),
                     discard.declareRiichi()
                             ? top.ellan.mahjong.spi.ActionPresentation
-                                    .secondaryRow("action.discard_riichi")
+                                    .secondaryRow(
+                                            "action.discard_riichi:"
+                                                    + semanticTile(
+                                                            tileInHand(
+                                                                    state,
+                                                                    actor,
+                                                                    discard.tile())))
                                     .withEmphasis()
                             : top.ellan.mahjong.spi.ActionPresentation.handTile(
                                     "action.discard",
@@ -56,15 +67,18 @@ public final class RiichiSpiActions {
             for (int index = 0; index < projections.length; index++) {
                 payload[1 + index] = (byte) projections[index];
             }
-            String key = switch (reaction.type()) {
+            String actionName = switch (reaction.type()) {
                 case RON -> "ron";
                 case PON -> "pon";
                 case MINKAN -> "minkan";
                 case CHII -> "chii";
                 case SKIP -> "skip";
             };
+            String key = uniqueReactionKey(actionName, projections);
+            String labelKey = semanticReactionLabel(
+                    state, actor, actionName, reaction.consumedTiles());
             top.ellan.mahjong.spi.ActionPresentation presentation =
-                    top.ellan.mahjong.spi.ActionPresentation.actionRow("action." + key);
+                    top.ellan.mahjong.spi.ActionPresentation.actionRow(labelKey);
             if (reaction.type() == ReactionType.RON) {
                 presentation = presentation.withEmphasis();
             }
@@ -79,7 +93,7 @@ public final class RiichiSpiActions {
                     "declare_self_kan:" + kan.kind().notation(),
                     new top.ellan.mahjong.spi.RuleAction("declare_self_kan", payload),
                     top.ellan.mahjong.spi.ActionPresentation.actionRow(
-                            "action.declare_self_kan"));
+                            "action.declare_self_kan:" + semanticKind(kan.kind())));
         }
         if (command instanceof RoundCommand.DeclareNineTerminals) {
             return new top.ellan.mahjong.spi.LegalAction(
@@ -198,5 +212,49 @@ public final class RiichiSpiActions {
         if (!inHand) {
             throw new IllegalArgumentException("tile is not in the actor's hand");
         }
+    }
+
+    private static String uniqueReactionKey(String actionName, int[] projections) {
+        if (projections.length == 0) {
+            return actionName;
+        }
+        int[] sorted = Arrays.copyOf(projections, projections.length);
+        Arrays.sort(sorted);
+        StringBuilder key = new StringBuilder(actionName).append(':');
+        for (int index = 0; index < sorted.length; index++) {
+            if (index > 0) {
+                key.append('-');
+            }
+            key.append(sorted[index]);
+        }
+        return key.toString();
+    }
+
+    private static String semanticReactionLabel(
+            RiichiMatchState state,
+            PlayerId actor,
+            String actionName,
+            List<TileId> consumedTiles) {
+        StringBuilder label = new StringBuilder("action.").append(actionName);
+        for (TileId tile : consumedTiles) {
+            label.append(':').append(semanticTile(tileInHand(state, actor, tile)));
+        }
+        return label.toString();
+    }
+
+    private static TileInstance tileInHand(
+            RiichiMatchState state, PlayerId actor, TileId tileId) {
+        return state.roundState().concealedHand(actor).stream()
+                .filter(tile -> tile.id().equals(tileId))
+                .findFirst()
+                .orElseThrow(() -> new IllegalArgumentException("tile is not in the actor's hand"));
+    }
+
+    private static String semanticTile(TileInstance tile) {
+        return semanticKind(tile.tile().kind()) + (tile.tile().red() ? "_red" : "");
+    }
+
+    private static String semanticKind(TileKind kind) {
+        return "tile." + kind.name().toLowerCase(Locale.ROOT);
     }
 }

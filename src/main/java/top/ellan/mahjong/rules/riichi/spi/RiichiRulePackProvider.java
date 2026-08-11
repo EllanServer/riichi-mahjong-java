@@ -147,7 +147,9 @@ public final class RiichiRulePackProvider implements top.ellan.mahjong.spi.RuleP
         List<RoundCommand> commands = current.match().roundState().legalCommands(player);
         ArrayList<top.ellan.mahjong.spi.LegalAction> result = new ArrayList<>(commands.size());
         for (RoundCommand command : commands) {
-            result.add(RiichiSpiActions.encode(current.projectionIds(), player, command));
+            result.add(
+                    RiichiSpiActions.encode(
+                            current.match(), current.projectionIds(), player, command));
         }
         return List.copyOf(result);
     }
