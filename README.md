@@ -64,7 +64,7 @@ answer and every reported physical wait must complete the hand.
 
 The command core rejects rather than guesses when a scenario asks it to:
 
-- score renhou;
+- request profile-external renhou;
 - use flowers, jokers, unknown tiles, three-player walls, or a fifth physical copy.
 
 Provider snapshots encode the immutable match header, the complete physical

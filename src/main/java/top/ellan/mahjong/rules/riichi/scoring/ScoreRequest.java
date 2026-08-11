@@ -66,6 +66,9 @@ public record ScoreRequest(
         if (firstTurn && (riichi || doubleRiichi || ippatsu || lastTile || rinshan)) {
             throw new IllegalArgumentException("first-turn win context is contradictory");
         }
+        if (firstTurn && !melds.isEmpty()) {
+            throw new IllegalArgumentException("tenhou/chiihou cannot have a declared meld");
+        }
         if (melds.size() > 4) {
             throw new IllegalArgumentException("a hand cannot contain more than four melds");
         }

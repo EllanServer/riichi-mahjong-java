@@ -1,9 +1,18 @@
 if (!project.ext.has('ruleResourceId')) {
     throw new GradleException('ruleResourceId must be configured before applying this script')
 }
+if (!project.ext.has('ruleSoundCueTypes')) {
+    throw new GradleException('ruleSoundCueTypes must be configured before applying this script')
+}
 
 def resourceId = project.ext.ruleResourceId.toString()
 def resourceVersion = project.version.toString()
+def ruleSoundCueTypes = project.ext.ruleSoundCueTypes.collect { it.toString() }
+if (ruleSoundCueTypes.any { !it.matches('[A-Z][A-Z0-9_]*') }
+        || ruleSoundCueTypes.toSet().size() != ruleSoundCueTypes.size()) {
+    throw new GradleException('ruleSoundCueTypes must contain unique enum-style names')
+}
+def expectedSoundCueKeys = ruleSoundCueTypes.collect { "cue.${it}" }.toSet()
 def resourceSource = layout.projectDirectory.dir('src/main/rule-resources')
 def generatedResources = layout.buildDirectory.dir('generated/rule-resource-pack')
 
@@ -13,6 +22,7 @@ def prepareRuleResourcePack = tasks.register('prepareRuleResourcePack') {
     inputs.dir(resourceSource)
     inputs.property('ruleResourceId', resourceId)
     inputs.property('ruleResourceVersion', resourceVersion)
+    inputs.property('ruleSoundCueTypes', ruleSoundCueTypes.sort().join(','))
     outputs.dir(generatedResources)
     doLast {
         def output = generatedResources.get().asFile
@@ -55,16 +65,91 @@ def prepareRuleResourcePack = tasks.register('prepareRuleResourcePack') {
             throw new GradleException('CraftEngine namespace must be isolated by rule version')
         }
         def soundDescriptorFile = new File(output, 'META-INF/mahjong-rule-sounds.properties')
+        if (!soundDescriptorFile.isFile()) {
+            throw new GradleException('Rule sound descriptor is missing')
+        }
         def soundDescriptor = new Properties()
         soundDescriptorFile.withReader('UTF-8') { reader -> soundDescriptor.load(reader) }
-        if (soundDescriptor.empty || soundDescriptor.values().any {
-                !it.toString().split(',', -1)[0].trim().startsWith(namespace + ':')
-            }) {
-            throw new GradleException('Every rule sound must use the versioned CE namespace')
+        def expectedSoundKeys = new LinkedHashSet(expectedSoundCueKeys)
+        expectedSoundKeys.add('opening.dice')
+        expectedSoundKeys.add('opening.wall')
+        if (soundDescriptor.stringPropertyNames() != expectedSoundKeys) {
+            throw new GradleException('Rule sound descriptor differs from emitted cue types')
         }
-        if (!new File(craftRoot,
-                "resourcepack/assets/${namespace}/sounds.json").isFile()) {
+        def soundEvents = new LinkedHashSet<String>()
+        soundDescriptor.each { key, value ->
+            def parts = value.toString().split(',', -1)
+            if (parts.length != 3 || !parts[0].trim().startsWith(namespace + ':')) {
+                throw new GradleException('Every rule sound must use key,volume,pitch in the versioned CE namespace')
+            }
+            try {
+                float volume = Float.parseFloat(parts[1].trim())
+                float pitch = Float.parseFloat(parts[2].trim())
+                if (!Float.isFinite(volume) || !Float.isFinite(pitch)
+                        || volume <= 0.0f || pitch <= 0.0f) {
+                    throw new NumberFormatException('non-positive or non-finite sound profile')
+                }
+            } catch (NumberFormatException failure) {
+                throw new GradleException("Invalid sound profile for ${key}", failure)
+            }
+            soundEvents.add(parts[0].trim().substring(namespace.length() + 1))
+        }
+        def soundRegistryFile = new File(craftRoot,
+                "resourcepack/assets/${namespace}/sounds.json")
+        if (!soundRegistryFile.isFile()) {
             throw new GradleException('Versioned CraftEngine sounds.json is missing')
+        }
+        def soundRegistry
+        try {
+            soundRegistry = new groovy.json.JsonSlurper().parse(soundRegistryFile, 'UTF-8')
+        } catch (Exception failure) {
+            throw new GradleException('CraftEngine sounds.json is invalid JSON', failure)
+        }
+        if (!(soundRegistry instanceof Map)
+                || soundRegistry.keySet().collect { it.toString() }.toSet() != soundEvents) {
+            throw new GradleException('CraftEngine sound events differ from the rule sound descriptor')
+        }
+        def soundRoot = new File(craftRoot,
+                "resourcepack/assets/${namespace}/sounds")
+        def referencedSoundFiles = new LinkedHashSet<String>()
+        soundRegistry.each { eventName, definition ->
+            def sounds = definition instanceof Map ? definition.get('sounds') : null
+            if (!(sounds instanceof List) || sounds.empty) {
+                throw new GradleException("CraftEngine sound event ${eventName} has no sounds")
+            }
+            sounds.each { reference ->
+                def soundName = reference instanceof CharSequence
+                    ? reference.toString()
+                    : reference instanceof Map && reference.get('name') instanceof CharSequence
+                        ? reference.get('name').toString()
+                        : null
+                if (soundName == null || !soundName.startsWith(namespace + ':')) {
+                    throw new GradleException("CraftEngine sound event ${eventName} has an invalid namespaced reference")
+                }
+                def relative = soundName.substring(namespace.length() + 1)
+                if (!relative.matches('[0-9a-z_/-]+')) {
+                    throw new GradleException("CraftEngine sound event ${eventName} has an unsafe file reference")
+                }
+                def relativeFile = relative + '.ogg'
+                if (!new File(soundRoot, relativeFile).isFile()) {
+                    throw new GradleException("CraftEngine sound file is missing: ${relativeFile}")
+                }
+                referencedSoundFiles.add(relativeFile)
+            }
+        }
+        def actualSoundFiles = new LinkedHashSet<String>()
+        if (soundRoot.isDirectory()) {
+            soundRoot.eachFileRecurse(groovy.io.FileType.FILES) { file ->
+                def relative = soundRoot.toPath().relativize(file.toPath())
+                    .toString().replace('\\', '/')
+                if (!relative.endsWith('.ogg')) {
+                    throw new GradleException("Unexpected non-OGG rule sound file: ${relative}")
+                }
+                actualSoundFiles.add(relative)
+            }
+        }
+        if (actualSoundFiles != referencedSoundFiles) {
+            throw new GradleException('CraftEngine sound files differ from sounds.json references')
         }
         def relativePath = { File file ->
             craftRoot.toPath().relativize(file.toPath()).toString().replace('\\', '/')

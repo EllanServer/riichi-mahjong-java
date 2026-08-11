@@ -8,7 +8,7 @@ boundary.
 | 34 tiles / physical IDs | Implemented | Invalid honors, red non-fives, fifth copies and duplicate IDs are rejected. |
 | Red fives | Implemented | Supply is typed per man/pin/sou suit and enforced in walls and score requests. |
 | Shanten / physical waits | Native Java | Standard, seven-pairs and thirteen-orphans shanten use compact 34-kind counts; legal chi/pon/kan melds are supported and exhausted fifth-copy waits are removed. |
-| Standard yaku / yakuman | Native Java | 42 named examples cover ordinary, situational and major yakuman cases. Renhou is not implemented. |
+| Standard yaku / yakuman | Native Java | 42 named examples cover ordinary, situational and major yakuman cases. Profile-external renhou is deliberately not representable. |
 | Dora / ura / red dora | Native Java | Repeated indicators count independently; bonus han cannot satisfy minimum-yaku-han. |
 | Fu / point limits | Native Java | Wait, pair, open/concealed triplet and kan fu feed exact ron/tsumo, kazoe and kiriage calculations. |
 | Chi / pon / daiminkan | Implemented | Seat priority, physical chi alternatives, red/non-red alternatives and kuikae are tested. |

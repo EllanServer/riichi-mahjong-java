@@ -89,6 +89,26 @@ class ScoreContextValidationTest {
     }
 
     @Test
+    void firstTurnYakumanCannotFollowADeclaredKan() {
+        Meld concealedKan = new Meld(
+                MeldType.ANKAN,
+                List.of(
+                        instance(100, TileKind.M1),
+                        instance(101, TileKind.M1),
+                        instance(102, TileKind.M1),
+                        instance(103, TileKind.M1)),
+                Optional.empty(),
+                Optional.empty());
+        List<Tile> concealed = TestFixtures.tiles(
+                "2p", "3p", "4p", "5p", "6p", "7p", "2s", "3s", "4s", "1z");
+
+        assertThrows(IllegalArgumentException.class, () -> new ScoreRequest(
+                concealed, List.of(concealedKan), Tile.of(TileKind.EAST), false, WinMethod.TSUMO,
+                Wind.SOUTH, Wind.EAST, false, false, false, false, false, false, true,
+                List.of(), List.of(), RiichiRules.mahjongSoul()));
+    }
+
+    @Test
     void kazoeDisabledUsesSanbaimanLabelAndPaymentCeiling() {
         List<Tile> redHand = TestFixtures.tiles(
                 "2m", "3m", "4m", "3m", "4m", "5m", "4p", "0p", "6p",
@@ -177,5 +197,9 @@ class ScoreContextValidationTest {
         }
         return new Meld(
                 MeldType.PON, tiles, Optional.of(new PlayerId("source")), Optional.of(tiles.getFirst().id()));
+    }
+
+    private static TileInstance instance(long id, TileKind kind) {
+        return new TileInstance(new TileId(id), Tile.of(kind));
     }
 }
