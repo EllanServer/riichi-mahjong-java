@@ -9,7 +9,6 @@ import top.ellan.mahjong.rules.riichi.engine.RoundCommand;
 import top.ellan.mahjong.rules.riichi.model.PlayerId;
 
 import java.util.ArrayList;
-import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 
@@ -19,7 +18,7 @@ public final class RiichiRulePackProvider implements top.ellan.mahjong.spi.RuleP
             new top.ellan.mahjong.spi.RuleId("riichi");
     public static final top.ellan.mahjong.spi.ProfileId PROFILE_ID =
             new top.ellan.mahjong.spi.ProfileId("mahjong-soul");
-    public static final String PACK_VERSION = "2.0.1";
+    public static final String PACK_VERSION = "2.0.2";
 
     private final top.ellan.mahjong.spi.RulePackDescriptor descriptor = descriptorValue();
     private final RiichiTransitionCoordinator transitions = new RiichiTransitionCoordinator();
@@ -204,8 +203,6 @@ public final class RiichiRulePackProvider implements top.ellan.mahjong.spi.RuleP
     }
 
     private static top.ellan.mahjong.spi.RulePackDescriptor descriptorValue() {
-        LinkedHashSet<String> resources = new LinkedHashSet<>();
-        resources.add("assets/riichi/tile-visuals.properties");
         String schema = "{\"type\":\"object\",\"properties\":{},"
                 + "\"additionalProperties\":false}";
         return new top.ellan.mahjong.spi.RulePackDescriptor(
@@ -218,7 +215,7 @@ public final class RiichiRulePackProvider implements top.ellan.mahjong.spi.RuleP
                         PROFILE_ID,
                         "Mahjong Soul Hanchan (four player)",
                         schema)),
-                Set.copyOf(resources));
+                Set.of());
     }
 
     private static long deriveMatchSeed(top.ellan.mahjong.spi.MatchSeed seed) {

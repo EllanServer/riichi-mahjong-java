@@ -5,6 +5,16 @@ It contains no Bukkit, Paper, Adventure, database, UI, scheduler, Kotlin
 runtime, reflection bridge or native library. Every public type is Java under
 `top.ellan.mahjong.rules.riichi`.
 
+## Release artifacts
+
+Every version publishes a pure `riichi-rule-pack-<version>.jar` and a separate
+`riichi-resource-pack-<version>.zip` in the same release. The JAR contains only rules,
+the ServiceLoader provider and static descriptor. Riichi sounds and their attribution
+live only in the resource ZIP; table, chairs and Mahjong tile visuals remain owned
+by the MahjongPaper core plugin. The ZIP payload is a CraftEngine pack, and its
+sound namespace is versioned so CE can keep old and new match generations loaded
+at the same time.
+
 Shanten, physical waits and scoring are native Java over compact 34-kind count
 vectors. Scoring is split into structural decomposition, yaku recognition, fu,
 points and bonus counting; no string parsing occurs on the scoring hot path.

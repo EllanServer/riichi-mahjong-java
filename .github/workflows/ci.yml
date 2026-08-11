@@ -101,5 +101,7 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: riichi-mahjong-java-candidate
-          path: build/libs/*.jar
+          path: |
+            build/libs/*.jar
+            build/distributions/*.zip
           if-no-files-found: error

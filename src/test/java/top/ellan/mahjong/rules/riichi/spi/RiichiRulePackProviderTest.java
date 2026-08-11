@@ -107,7 +107,7 @@ class RiichiRulePackProviderTest {
         assertEquals(RiichiRulePackProvider.PROFILE_ID,
                 provider.descriptor().profiles().getFirst().id());
         assertEquals(1, provider.descriptor().stateSchemaVersion());
-        assertEquals(Set.of("assets/riichi/tile-visuals.properties"),
+        assertEquals(Set.of(),
                 provider.descriptor().requiredResources());
 
         Properties manifest = new Properties();
@@ -123,10 +123,9 @@ class RiichiRulePackProviderTest {
                 manifest.getProperty("requiredCoreVersion"));
         assertEquals(Integer.toString(provider.descriptor().stateSchemaVersion()),
                 manifest.getProperty("stateSchemaVersion"));
-        assertEquals("assets/riichi/tile-visuals.properties",
-                manifest.getProperty("requiredResources"));
+        assertEquals("", manifest.getProperty("requiredResources"));
         assertTrue(RiichiRulePackProvider.class.getClassLoader().getResource(
-                "assets/riichi/tile-visuals.properties") != null);
+                "assets/riichi/tile-visuals.properties") == null);
     }
 
     @Test

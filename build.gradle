@@ -4,7 +4,9 @@ plugins {
 }
 
 group = 'top.ellan.mahjong.rules'
-version = '2.0.1'
+version = '2.0.2'
+ext.ruleResourceId = 'riichi'
+apply from: 'gradle/rule-resources.gradle'
 
 repositories {
     def ruleSdkRepo = providers.gradleProperty('mahjongRuleSdkRepo')
@@ -41,6 +43,8 @@ tasks.withType(JavaCompile).configureEach {
 
 tasks.withType(Test).configureEach {
     useJUnitPlatform()
+    maxHeapSize = '256m'
+    maxParallelForks = 1
     testLogging {
         events 'failed', 'skipped'
         exceptionFormat 'full'
@@ -50,6 +54,7 @@ tasks.withType(Test).configureEach {
 tasks.named('jar') {
     archiveBaseName = 'riichi-rule-pack'
     archiveClassifier = 'thin'
+    exclude 'assets/**', 'resourcepack/**', 'craftengine/**'
     manifest {
         attributes(
             'Mahjong-Rule-Id': 'riichi',
@@ -90,9 +95,16 @@ tasks.register('verifyRulePackJar') {
         if (!names.contains('META-INF/services/top.ellan.mahjong.spi.RulePackProvider')) {
             throw new GradleException('Rule pack jar has no RulePackProvider service descriptor')
         }
-        if (!names.contains('META-INF/mahjong-rule-pack.properties')
-            || !names.contains('assets/riichi/tile-visuals.properties')) {
-            throw new GradleException('Rule pack jar is missing its static descriptor resources')
+        if (!names.contains('META-INF/mahjong-rule-pack.properties')) {
+            throw new GradleException('Rule pack jar is missing its static descriptor')
+        }
+        if (names.any { name -> name.startsWith('assets/')
+                || name.startsWith('resourcepack/')
+                || name.startsWith('craftengine/')
+                || name.endsWith('.ogg')
+                || name.endsWith('.png')
+                || name.endsWith('.mcmeta') }) {
+            throw new GradleException('Rule pack jar must not contain presentation resources')
         }
         if (names.any { name -> name.startsWith('mahjongutils/')
                 || name.startsWith('kotlin/')

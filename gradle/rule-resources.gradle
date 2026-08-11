@@ -1,0 +1,155 @@
+if (!project.ext.has('ruleResourceId')) {
+    throw new GradleException('ruleResourceId must be configured before applying this script')
+}
+
+def resourceId = project.ext.ruleResourceId.toString()
+def resourceVersion = project.version.toString()
+def resourceSource = layout.projectDirectory.dir('src/main/rule-resources')
+def generatedResources = layout.buildDirectory.dir('generated/rule-resource-pack')
+
+def prepareRuleResourcePack = tasks.register('prepareRuleResourcePack') {
+    group = 'build'
+    description = 'Generates the integrity index for the resource-only companion ZIP.'
+    inputs.dir(resourceSource)
+    inputs.property('ruleResourceId', resourceId)
+    inputs.property('ruleResourceVersion', resourceVersion)
+    outputs.dir(generatedResources)
+    doLast {
+        def output = generatedResources.get().asFile
+        output.deleteDir()
+        output.mkdirs()
+        def sourceRoot = resourceSource.asFile.toPath()
+        resourceSource.asFile.eachFileRecurse(groovy.io.FileType.FILES) { sourceFile ->
+            def target = output.toPath().resolve(sourceRoot.relativize(sourceFile.toPath()))
+            target.parent.toFile().mkdirs()
+            java.nio.file.Files.copy(
+                sourceFile.toPath(),
+                target,
+                java.nio.file.StandardCopyOption.REPLACE_EXISTING
+            )
+        }
+
+        def descriptorFile = new File(output, 'META-INF/mahjong-rule-resources.properties')
+        if (!descriptorFile.isFile()) {
+            throw new GradleException('Rule resource descriptor is missing')
+        }
+        def descriptor = new Properties()
+        descriptorFile.withReader('UTF-8') { reader -> descriptor.load(reader) }
+        if (descriptor.getProperty('format') != '1'
+                || descriptor.getProperty('id') != resourceId
+                || descriptor.getProperty('version') != resourceVersion) {
+            throw new GradleException('Rule resource descriptor differs from the Gradle coordinate')
+        }
+
+        def craftRoot = new File(output, 'craftengine')
+        def packFile = new File(craftRoot, 'pack.yml')
+        if (!packFile.isFile()) {
+            throw new GradleException('Rule resource pack has no CraftEngine pack.yml')
+        }
+        def namespace = "mahjong_${resourceId}_v" +
+            resourceVersion.replaceAll('[^0-9A-Za-z]', '_').toLowerCase(Locale.ROOT)
+        def namespaceLines = packFile.readLines('UTF-8')
+            .collect { it.trim() }
+            .findAll { it.startsWith('namespace:') }
+        if (namespaceLines != ["namespace: ${namespace}"]) {
+            throw new GradleException('CraftEngine namespace must be isolated by rule version')
+        }
+        def soundDescriptorFile = new File(output, 'META-INF/mahjong-rule-sounds.properties')
+        def soundDescriptor = new Properties()
+        soundDescriptorFile.withReader('UTF-8') { reader -> soundDescriptor.load(reader) }
+        if (soundDescriptor.empty || soundDescriptor.values().any {
+                !it.toString().split(',', -1)[0].trim().startsWith(namespace + ':')
+            }) {
+            throw new GradleException('Every rule sound must use the versioned CE namespace')
+        }
+        if (!new File(craftRoot,
+                "resourcepack/assets/${namespace}/sounds.json").isFile()) {
+            throw new GradleException('Versioned CraftEngine sounds.json is missing')
+        }
+        def relativePath = { File file ->
+            craftRoot.toPath().relativize(file.toPath()).toString().replace('\\', '/')
+        }
+        def contentFiles = []
+        craftRoot.eachFileRecurse(groovy.io.FileType.FILES) { file ->
+            if (file.name != '_bundle_index.txt' && file.name != '_bundle_manifest.sha256') {
+                contentFiles.add(file)
+            }
+        }
+        contentFiles = contentFiles
+            .sort { left, right -> relativePath(left) <=> relativePath(right) }
+        if (contentFiles.empty) {
+            throw new GradleException('Rule resource pack has no CraftEngine content')
+        }
+        def hash = { File file ->
+            def digest = java.security.MessageDigest.getInstance('SHA-256')
+            file.withInputStream { input ->
+                byte[] buffer = new byte[8192]
+                for (int read = input.read(buffer); read >= 0; read = input.read(buffer)) {
+                    if (read > 0) {
+                        digest.update(buffer, 0, read)
+                    }
+                }
+            }
+            java.util.HexFormat.of().formatHex(digest.digest())
+        }
+        def manifestName = '_bundle_manifest.sha256'
+        new File(craftRoot, manifestName).setText(
+            contentFiles.collect { file -> "${hash(file)}  ${relativePath(file)}" }.join('\n') + '\n',
+            'UTF-8'
+        )
+        new File(craftRoot, '_bundle_index.txt').setText(
+            (contentFiles.collect(relativePath) + manifestName).sort().join('\n') + '\n',
+            'UTF-8'
+        )
+    }
+}
+
+def ruleResourcesZip = tasks.register('ruleResourcesZip', Zip) {
+    group = 'build'
+    description = 'Builds the resource-only companion for the rule JAR.'
+    dependsOn prepareRuleResourcePack
+    from generatedResources
+    archiveBaseName = "${resourceId}-resource-pack"
+    destinationDirectory = layout.buildDirectory.dir('distributions')
+    preserveFileTimestamps = false
+    reproducibleFileOrder = true
+}
+
+tasks.register('verifyRuleResourcesZip') {
+    group = 'verification'
+    description = 'Rejects executable code and verifies the resource ZIP boundary.'
+    dependsOn ruleResourcesZip
+    doLast {
+        def archive = ruleResourcesZip.get().archiveFile.get().asFile
+        def names = []
+        zipTree(archive).visit { details ->
+            if (!details.directory) {
+                names.add(details.relativePath.pathString)
+            }
+        }
+        def required = [
+            'META-INF/mahjong-rule-resources.properties',
+            'META-INF/mahjong-rule-sounds.properties',
+            'META-INF/RESOURCEPACK_ATTRIBUTION.md',
+            'craftengine/_bundle_index.txt',
+            'craftengine/_bundle_manifest.sha256',
+            'craftengine/pack.yml'
+        ]
+        if (!names.containsAll(required)) {
+            throw new GradleException('Rule resource ZIP is missing required metadata')
+        }
+        if (names.any { name -> name.endsWith('.class')
+                || name.startsWith('META-INF/services/')
+                || name.startsWith('top/ellan/mahjong/') }) {
+            throw new GradleException('Rule resource ZIP must not contain executable rule code')
+        }
+    }
+}
+
+tasks.named('check') {
+    dependsOn tasks.named('verifyRuleResourcesZip')
+}
+
+tasks.named('assemble') {
+    dependsOn ruleResourcesZip
+}

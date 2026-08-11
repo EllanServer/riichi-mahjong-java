@@ -58,6 +58,9 @@ jobs:
           test "$TAG" = "v$VERSION"
           grep -qx "id=$RULE_ID" src/main/resources/META-INF/mahjong-rule-pack.properties
           grep -qx "version=$VERSION" src/main/resources/META-INF/mahjong-rule-pack.properties
+          grep -qx "format=1" src/main/rule-resources/META-INF/mahjong-rule-resources.properties
+          grep -qx "id=$RULE_ID" src/main/rule-resources/META-INF/mahjong-rule-resources.properties
+          grep -qx "version=$VERSION" src/main/rule-resources/META-INF/mahjong-rule-resources.properties
           if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
             echo "Release already exists: $TAG" >&2
             exit 1
@@ -80,12 +83,17 @@ jobs:
           mapfile -t JARS < <(find build/libs -maxdepth 1 -name "$RULE_ID-rule-pack-$VERSION.jar" -type f)
           test "${#JARS[@]}" -eq 1
           JAR="${JARS[0]}"
+          RESOURCE="build/distributions/$RULE_ID-resource-pack-$VERSION.zip"
+          test -f "$RESOURCE"
           SHA256="$(sha256sum "$JAR" | cut -d' ' -f1)"
           SIZE="$(stat -c '%s' "$JAR")"
+          RESOURCE_SHA256="$(sha256sum "$RESOURCE" | cut -d' ' -f1)"
+          RESOURCE_SIZE="$(stat -c '%s' "$RESOURCE")"
           SPI_VERSION="$(sed -n 's/^spiVersion=//p' src/main/resources/META-INF/mahjong-rule-pack.properties)"
           CORE_VERSION="$(sed -n 's/^requiredCoreVersion=//p' src/main/resources/META-INF/mahjong-rule-pack.properties)"
           URL="https://github.com/${GITHUB_REPOSITORY}/releases/download/${TAG}/$(basename "$JAR")"
-          export SHA256 SIZE SPI_VERSION CORE_VERSION URL
+          RESOURCE_URL="https://github.com/${GITHUB_REPOSITORY}/releases/download/${TAG}/$(basename "$RESOURCE")"
+          export SHA256 SIZE SPI_VERSION CORE_VERSION URL RESOURCE_SHA256 RESOURCE_SIZE RESOURCE_URL
           python3 - <<'PY'
           import json, os
           entry = {
@@ -96,12 +104,16 @@ jobs:
               "spiVersion": os.environ["SPI_VERSION"],
               "requiredCoreVersion": os.environ["CORE_VERSION"],
               "sizeBytes": int(os.environ["SIZE"]),
+              "resourceUrl": os.environ["RESOURCE_URL"],
+              "resourceSha256": os.environ["RESOURCE_SHA256"],
+              "resourceSizeBytes": int(os.environ["RESOURCE_SIZE"]),
           }
           with open("registry-entry.json", "w", encoding="utf-8", newline="\n") as output:
               json.dump(entry, output, ensure_ascii=True, separators=(",", ":"))
               output.write("\n")
           PY
           echo "jar=$JAR" >> "$GITHUB_OUTPUT"
+          echo "resources=$RESOURCE" >> "$GITHUB_OUTPUT"
       - name: Publish immutable GitHub Release
         uses: softprops/action-gh-release@v3
         with:
@@ -109,4 +121,5 @@ jobs:
           generate_release_notes: true
           files: |
             ${{ steps.artifact.outputs.jar }}
+            ${{ steps.artifact.outputs.resources }}
             registry-entry.json

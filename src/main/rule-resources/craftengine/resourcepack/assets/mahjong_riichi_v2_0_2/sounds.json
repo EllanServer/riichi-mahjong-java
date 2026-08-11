@@ -1,0 +1,18 @@
+{
+  "tile_draw": { "sounds": ["mahjong_riichi_v2_0_2:tile_draw"] },
+  "tile_discard": { "sounds": ["mahjong_riichi_v2_0_2:tile_discard"] },
+  "tile_shuffle": { "sounds": ["mahjong_riichi_v2_0_2:tile_shuffle"] },
+  "reaction_chi": { "sounds": ["mahjong_riichi_v2_0_2:reaction_chi"] },
+  "reaction_pon": { "sounds": ["mahjong_riichi_v2_0_2:reaction_pon"] },
+  "reaction_kan": { "sounds": ["mahjong_riichi_v2_0_2:reaction_kan"] },
+  "riichi": { "sounds": ["mahjong_riichi_v2_0_2:riichi"] },
+  "round_win": { "sounds": ["mahjong_riichi_v2_0_2:round_win"] },
+  "round_draw": { "sounds": ["mahjong_riichi_v2_0_2:round_draw"] },
+  "turn_change": { "sounds": ["mahjong_riichi_v2_0_2:turn_change"] },
+  "opening_dice": {
+    "sounds": [{ "name": "mahjong_riichi_v2_0_2:tile_shuffle", "volume": 0.65, "pitch": 1.35 }]
+  },
+  "opening_wall_break": {
+    "sounds": [{ "name": "mahjong_riichi_v2_0_2:tile_draw", "volume": 0.9, "pitch": 0.8 }]
+  }
+}
