@@ -16,7 +16,7 @@ import java.util.Set;
  *
  * <p>The recursive search mutates and restores one compact count vector. Public
  * inputs and results never expose that vector, so one evaluator instance is safe
- * for concurrent callers. The only shared state is the synchronized bounded
+ * for concurrent callers. The only shared state is the concurrent bounded
  * result cache.</p>
  */
 final class NativeHandEvaluator implements HandEvaluator {
@@ -26,8 +26,8 @@ final class NativeHandEvaluator implements HandEvaluator {
     private static final int CACHE_SIZE = 4_096;
     private static final TileKind[] KINDS = TileKind.values();
 
-    private final BoundedLruCache<AnalysisKey, HandAnalysis> cache =
-            new BoundedLruCache<>(CACHE_SIZE);
+    private final BoundedConcurrentCache<AnalysisKey, HandAnalysis> cache =
+            new BoundedConcurrentCache<>(CACHE_SIZE);
 
     @Override
     public HandAnalysis analyze(List<Tile> concealedTiles, List<Meld> melds) {

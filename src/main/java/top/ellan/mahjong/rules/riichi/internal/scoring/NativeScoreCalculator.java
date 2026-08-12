@@ -12,30 +12,28 @@ import top.ellan.mahjong.rules.riichi.scoring.YakuAward;
 
 import java.util.ArrayList;
 import java.util.Comparator;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 
 /** Pure Java score calculator; contains no reflective or Kotlin runtime boundary. */
 public final class NativeScoreCalculator implements ScoreCalculator {
     private static final int CACHE_SIZE = 2_048;
-    private final LinkedHashMap<ScoreRequest, ScoreResult> cache =
-            new LinkedHashMap<>(128, 0.75f, true);
+    private final ConcurrentMap<ScoreRequest, ScoreResult> cache =
+            new ConcurrentHashMap<>(128);
 
     @Override
     public ScoreResult score(ScoreRequest request) {
-        ScoreResult cached;
-        synchronized (cache) {
-            cached = cache.get(request);
-        }
+        ScoreResult cached = cache.get(request);
         if (cached != null) return cached;
 
         ScoreResult calculated = calculate(request);
-        synchronized (cache) {
-            cache.put(request, calculated);
-            if (cache.size() > CACHE_SIZE) cache.pollFirstEntry();
+        ScoreResult concurrent = cache.putIfAbsent(request, calculated);
+        if (concurrent == null && cache.size() > CACHE_SIZE) {
+            cache.remove(request, calculated);
         }
-        return calculated;
+        return concurrent == null ? calculated : concurrent;
     }
 
     private static ScoreResult calculate(ScoreRequest request) {
