@@ -549,11 +549,6 @@ public final class RiichiRound {
             ReactionResolution resolution,
             List<RoundEvent> events) {
         if (!resolution.ronWinners().isEmpty()) {
-            if (resolution.ronWinners().size() == 3) {
-                pendingReaction = null;
-                end("TRIPLE_RON", AbortiveDraw.TRIPLE_RON, null, events);
-                return;
-            }
             resolveRon(pending, resolution.ronWinners(), events);
             return;
         }

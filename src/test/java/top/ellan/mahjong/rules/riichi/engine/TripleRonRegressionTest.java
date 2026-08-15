@@ -14,12 +14,18 @@ import top.ellan.mahjong.rules.riichi.scoring.YakuAward;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+/**
+ * v1.5 section 4: MULTI_RON settles every legal claimant, including triple ron; there is no
+ * separate triple-ron abort. Section 8: only the winner nearest the discarder receives honba
+ * and the carried riichi-stick pool.
+ */
 class TripleRonRegressionTest {
     private static final PlayerId A = new PlayerId("a");
     private static final PlayerId B = new PlayerId("b");
@@ -28,7 +34,7 @@ class TripleRonRegressionTest {
     private static final List<PlayerId> SEATS = List.of(A, B, C, D);
 
     @Test
-    void threeSimultaneousRonDeclarationsBecomeAnAbortiveDraw() {
+    void threeSimultaneousRonDeclarationsAllSettleAsWinners() {
         long[] id = {0};
         TileInstance discarded = tile(id, TileKind.P3);
         List<TileKind> pattern = List.of(
@@ -56,10 +62,12 @@ class TripleRonRegressionTest {
         CommandResult result = round.apply(new RoundCommand.Respond(D, Reaction.ron()));
 
         assertTrue(result.accepted());
-        assertEquals(Optional.of(AbortiveDraw.TRIPLE_RON), result.snapshot().abortiveDraw());
-        assertEquals(Optional.of("TRIPLE_RON"), result.snapshot().endReason());
-        assertTrue(result.snapshot().winners().isEmpty());
-        assertTrue(result.snapshot().scores().values().stream().allMatch(score -> score == 25_000));
+        assertEquals(Optional.empty(), result.snapshot().abortiveDraw());
+        assertEquals(Optional.of("RON"), result.snapshot().endReason());
+        assertEquals(Set.of(B, C, D), result.snapshot().winners());
+        assertEquals(
+                Map.of(A, 22_000, B, 26_000, C, 26_000, D, 26_000),
+                result.snapshot().scores());
     }
 
     private static List<TileInstance> hand(long[] id, List<TileKind> kinds) {

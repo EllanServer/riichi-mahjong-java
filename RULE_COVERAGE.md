@@ -19,8 +19,8 @@ boundary.
 | Last live-wall tile | Implemented | Only ron is offered after the final discard; no kan/call is allowed. |
 | Furiten | Implemented core | Own-discard, temporary and riichi-permanent lifetimes are explicit. |
 | Ippatsu | Implemented core | Calls and kans interrupt; next own discard expires it. |
-| Abortive draws | Implemented | Nine terminals, four winds, four riichi, triple ron and multi-player four-kan triggers all retain dealer and increment honba in match progression. |
-| Ron / tsumo settlement | Implemented core | Honba, riichi pool/refund, multi-ron aggregation and overflow preflight are tested. |
+| Abortive draws | Implemented | Nine terminals, four winds, four riichi and multi-player four-kan triggers all retain dealer and increment honba in match progression. |
+| Ron / tsumo settlement | Implemented core | Honba, riichi pool/refund, multi-ron aggregation and overflow preflight are tested; MULTI_RON settles double and triple ron with no triple-ron abort, and only the nearest winner collects honba and the carried riichi pool. |
 | Pao | Implemented core | The third open dragon or fourth open wind set binds the feeding player; integrated ron/tsumo settlement splits only the liable yakuman portion. |
 | Exhaustive draw / nagashi | Implemented core | The 3,000-point noten pool, formal tenpai set, unclaimed terminal/honor river check, mangan payments and riichi-pool carry are explicit. |
 | Match progression | Implemented core | Immutable East-South state owns dealer continuation, honba/riichi carry, bust, automatic all-last stop, West sudden death, maximum wind and East-one tie ordering. |

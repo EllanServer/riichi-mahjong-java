@@ -44,8 +44,10 @@ as an ordinary no-yaku result.
 - ankan/kakan, explicit chankan windows, Kokushi-only ankan robbery, and riichi-ankan wait preservation;
 - fifth-kan rejection on self/discard paths and profile-specific open-kan dora timing;
 - one-shot reactions, own/temporary/riichi furiten and ippatsu interruption;
-- nine-terminals, four-winds, four-riichi, triple-ron and multi-player four-kan abortive-draw triggers;
-- ron/tsumo settlement, honba/riichi pool, and per-player payment aggregation;
+- nine-terminals, four-winds, four-riichi and multi-player four-kan abortive-draw triggers;
+- ron/tsumo settlement, honba/riichi pool, and per-player payment aggregation; MULTI_RON settles
+  double and triple ron with no triple-ron abort, and only the nearest winner collects honba
+  and the carried riichi pool;
 - exhaustive-draw tenpai/noten payments and river/call-aware nagashi mangan;
 - automatic Daisangen/Daisuushii pao registration and integrated ron/tsumo payment splitting;
 - immutable East-South match progression with renchan, honba, riichi carry, busts, West sudden death and rankings.

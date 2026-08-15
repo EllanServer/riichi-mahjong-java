@@ -4,6 +4,5 @@ public enum AbortiveDraw {
     NINE_TERMINALS,
     FOUR_WINDS,
     FOUR_RIICHI,
-    FOUR_KANS,
-    TRIPLE_RON
+    FOUR_KANS
 }
