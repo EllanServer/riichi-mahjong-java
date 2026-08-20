@@ -175,12 +175,32 @@ final class HandDecomposer {
     }
 
     private static Group fromMeld(Meld meld) {
-        TileKind first = meld.tiles().getFirst().tile().kind();
         return new Group(
                 meld.type() == MeldType.CHII ? GroupType.SEQUENCE : GroupType.TRIPLET,
-                first,
+                baseTile(meld),
                 meld.open(),
                 meld.type().isKan());
+    }
+
+    /**
+     * A sequence group is identified by its lowest tile.
+     *
+     * <p>{@link Meld} keeps its tiles in claim order, so the claimed tile can sit anywhere: chii-ing
+     * the 7 of a 7-8-9 run stores 8 first. Taking the stored first tile as the sequence base produced
+     * a rank-8 sequence and threw.</p>
+     */
+    private static TileKind baseTile(Meld meld) {
+        TileKind lowest = meld.tiles().getFirst().tile().kind();
+        if (meld.type() != MeldType.CHII) {
+            return lowest;
+        }
+        for (var tile : meld.tiles()) {
+            TileKind kind = tile.tile().kind();
+            if (kind.rank() < lowest.rank()) {
+                lowest = kind;
+            }
+        }
+        return lowest;
     }
 
     private static int firstOccupied(int[] counts) {

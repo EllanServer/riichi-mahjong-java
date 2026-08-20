@@ -304,8 +304,13 @@ public final class RiichiRound {
             return List.copyOf(commands);
         }
         PlayerState state = player(player);
+        // A declared riichi hand is locked: only the freshly drawn tile may leave it.
+        boolean tsumogiriOnly = (state.riichi || state.doubleRiichi) && state.lastDrawn != null;
         for (TileInstance tile : state.hand) {
             if (state.kuikaeForbidden.contains(tile.tile().kind())) {
+                continue;
+            }
+            if (tsumogiriOnly && !state.lastDrawn.equals(tile.id())) {
                 continue;
             }
             commands.add(new RoundCommand.Discard(player, tile.id(), false));
@@ -394,6 +399,10 @@ public final class RiichiRound {
         }
         ReactionOptions options = pendingReaction.window.options().get(player);
         if (options == null) {
+            return List.of();
+        }
+        // A window stays open until everyone answers; a player who already did has no action left.
+        if (pendingReaction.window.hasResponded(player)) {
             return List.of();
         }
         PlayerState state = player(player);

@@ -92,6 +92,11 @@ public final class ReactionWindow {
         return Map.copyOf(responses);
     }
 
+    /** True once {@code player} has answered, so the window must stop offering it actions. */
+    public boolean hasResponded(PlayerId player) {
+        return responses.containsKey(Objects.requireNonNull(player, "player"));
+    }
+
     public Optional<ReactionResolution> resolution() {
         return Optional.ofNullable(resolution);
     }
