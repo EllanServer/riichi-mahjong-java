@@ -1,6 +1,5 @@
 plugins {
     id 'java-library'
-    id 'com.gradleup.shadow' version '9.6.1'
 }
 
 group = 'top.ellan.mahjong.rules'
@@ -59,13 +58,12 @@ tasks.withType(Test).configureEach {
     maxParallelForks = 1
     testLogging {
         events 'failed', 'skipped'
-        exceptionFormat 'full'
+        exceptionFormat = 'full'
     }
 }
 
 tasks.named('jar') {
     archiveBaseName = 'riichi-rule-pack'
-    archiveClassifier = 'thin'
     exclude 'assets/**', 'resourcepack/**', 'craftengine/**'
     manifest {
         attributes(
@@ -82,19 +80,12 @@ tasks.named('jar') {
     }
 }
 
-tasks.named('shadowJar') {
-    archiveBaseName = 'riichi-rule-pack'
-    archiveClassifier = ''
-    duplicatesStrategy = DuplicatesStrategy.INCLUDE
-    mergeServiceFiles()
-}
-
 tasks.register('verifyRulePackJar') {
     group = 'verification'
-    description = 'Checks the ServiceLoader entry and parent-loaded SPI boundary.'
-    dependsOn tasks.named('shadowJar')
+    description = 'Checks the thin dependency-free JAR and parent-loaded SPI boundary.'
+    dependsOn tasks.named('jar')
     doLast {
-        def archive = tasks.named('shadowJar').get().archiveFile.get().asFile
+        def archive = tasks.named('jar', Jar).get().archiveFile.get().asFile
         def names = []
         zipTree(archive).visit { details ->
             if (!details.directory) {

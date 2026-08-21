@@ -67,7 +67,7 @@ jobs:
           fi
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
           echo "tag=$TAG" >> "$GITHUB_OUTPUT"
-      - name: Compile, test and verify isolated fat JAR
+      - name: Compile, test and verify isolated thin JAR
         run: >-
           ./gradlew clean check
           -PmahjongRuleSdkRepo="$GITHUB_WORKSPACE/.rule-sdk-source/build/rule-sdk-repository"

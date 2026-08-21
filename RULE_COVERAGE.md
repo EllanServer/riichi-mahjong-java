@@ -30,7 +30,7 @@ boundary.
 ## Runtime boundary
 
 All production source and public API types are Java. `HandEvaluator` and
-`ScoreCalculator` are independent native services. The fat-JAR check rejects
+`ScoreCalculator` are independent native services. The thin-JAR check rejects
 `mahjongutils/`, `kotlin/` and `kotlinx/` entries, while a second Gradle sentinel
 requires an empty production runtime classpath. Tests use JUnit and the parent
 SPI/TCK only; neither is bundled.

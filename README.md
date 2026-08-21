@@ -28,7 +28,7 @@ See [RULE_COVERAGE.md](RULE_COVERAGE.md).
 ```
 
 `check` runs JUnit 5, verifies the SPI boundary, rejects Kotlin/Kotlinx classes
-inside the fat JAR, and fails if production gains any third-party runtime
+inside the thin dependency-free JAR, and fails if production gains any third-party runtime
 artifact. Scoring failures throw `EvaluationException`; they are never reported
 as an ordinary no-yaku result.
 
